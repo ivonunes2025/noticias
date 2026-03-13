@@ -1,0 +1,568 @@
+---
+/**
+ * PÁGINA DE CONTACTO (DINÂMICA)
+ * Esta página carrega as informações diretamente do Strapi CMS.
+ */
+
+// Desativa a pré-renderização estática para que a página possa carregar dados frescos do Strapi em cada visita
+export const prerender = false;
+
+// Importação dos componentes base do site
+import Layout from "../layouts/Layout.astro";
+import Navbar from "../components/Navbar.astro";
+import { getImageUrl } from "../utils/strapi";
+
+// URL base do Strapi obtida das variáveis de ambiente
+const STRAPI = import.meta.env.STRAPI_URL;
+
+/** 
+ * BUSCA DE DADOS:
+ * Fazemos um fetch à coleção de 'Páginas' do Strapi filtrando pelo slug 'contacto'.
+ * O parâmetro 'populate=*' garante que trazemos todos os campos (como imagens e mapa).
+ */
+const res = await fetch(`${STRAPI}/api/paginas?filters[slug][$eq]=contacto&populate=*`);
+const json = await res.json();
+
+/**
+ * TRATAMENTO DE DADOS:
+ * O Strapi devolve os dados numa lista (data[]). Apanhamos o primeiro item.
+ * Suportamos tanto o formato Strapi v4 (attributes) como formatos simplificados.
+ */
+const rawData = json.data;
+const pageItem = Array.isArray(rawData) ? rawData[0] : rawData;
+const contacto = pageItem?.attributes ?? pageItem;
+---
+
+<Layout titulo={contacto?.titulo ?? "Contacto"}>
+  <Navbar isHome={false} />
+
+  <main class="contacto-container">
+    <header class="contacto-header reveal">
+      <div class="header-content">
+        <h1>{contacto?.titulo}</h1>
+        {contacto?.descricao && (
+          <p class="contacto-descricao">{contacto.descricao}</p>
+        )}
+      </div>
+      {contacto?.imagem && (
+        <div class="header-image-container">
+          <img src={getImageUrl(contacto.imagem)} alt={contacto?.titulo} class="contacto-imagem" />
+          <div class="image-overlay"></div>
+        </div>
+      )}
+    </header>
+
+    <section class="contacto-content">
+      <div class="contacto-grid">
+        <!-- Coluna de Informações -->
+        <div class="info-column reveal" style="transition-delay: 0.1s;">
+          <h2 class="section-title">Fale Connosco</h2>
+          <p class="section-text">Estamos aqui para ajudar. Escolha a forma mais conveniente para entrar em contacto.</p>
+          
+          <div class="contact-methods">
+            <a 
+              href="https://www.google.com/maps/search/?api=1&query=Rua+Escritor+Sequeira+Amaral+nrº+21+4600-124+Amarante+Porto+Portugal" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              class="method-card"
+            >
+              <div class="method-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+              </div>
+              <div class="method-details">
+                <h3>Morada</h3>
+                <p>Rua Escritor Sequeira Amaral nrº 21, Amarante, Porto</p>
+              </div>
+            </a>
+
+            {contacto?.email && (
+              <a href={`mailto:${contacto.email}`} class="method-card">
+                <div class="method-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                </div>
+                <div class="method-details">
+                  <h3>Email</h3>
+                  <p>{contacto.email}</p>
+                </div>
+              </a>
+            )}
+
+            {contacto?.telemovel && (
+              <a href={`tel:${contacto.telemovel}`} class="method-card">
+                <div class="method-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                </div>
+                <div class="method-details">
+                  <h3>Telemóvel</h3>
+                  <p>{contacto.telemovel}</p>
+                </div>
+              </a>
+            )}
+          </div>
+        </div>
+
+        <!-- Coluna do Formulário -->
+        <div class="form-column reveal" style="transition-delay: 0.2s;">
+          <div class="form-container">
+        <form id="contact-form" data-strapi={STRAPI}>
+          <div class="input-group">
+            <input type="text" id="name" name="name" required placeholder=" " />
+            <label for="name">Nome Completo</label>
+          </div>
+              <div class="input-group">
+                <input type="email" id="email" name="email" required placeholder=" " />
+                <label for="email">O seu Email</label>
+              </div>
+              <div class="input-group">
+                <input type="text" id="subject" name="subject" required placeholder=" " />
+                <label for="subject">Assunto</label>
+              </div>
+              <div class="input-group">
+                <textarea id="message" name="message" rows="4" required placeholder=" "></textarea>
+                <label for="message">Mensagem</label>
+              </div>
+              <button type="submit" class="submit-btn">
+                <span>Enviar Mensagem</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              </button>
+              <div id="form-status" class="form-status"></div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mapa -->
+    {contacto?.mapa && (
+      <section class="contacto-mapa reveal" style="transition-delay: 0.3s;">
+        <div class="map-wrapper">
+          <iframe
+            src={contacto.mapa}
+            width="100%"
+            height="450"
+            allowfullscreen
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+          />
+        </div>
+      </section>
+    )}
+  </main>
+</Layout>
+
+<script>
+  // Script para animações de entrada ao fazer scroll
+  const observerOptions = {
+    threshold: 0.1
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('active');
+      }
+    });
+  }, observerOptions);
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // Lógica real do formulário usando Proxy para evitar CORS
+  const form = document.getElementById('contact-form') as HTMLFormElement;
+  const status = document.getElementById('form-status');
+
+  if (form && status) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector('.submit-btn') as HTMLButtonElement;
+      const btnSpan = btn.querySelector('span');
+      
+      const formData = new FormData(form);
+      const data = {
+        data: {
+          nome: formData.get('name'),
+          email: formData.get('email'),
+          assunto: formData.get('subject'),
+          mensagem: formData.get('message'),
+        }
+      };
+
+      if (btnSpan) {
+        const originalText = btnSpan.innerText;
+        btnSpan.innerText = 'A enviar...';
+        btn.disabled = true;
+
+        // Limpar status anterior
+        status.innerText = '';
+        status.className = 'form-status';
+
+        try {
+          // Chamamos o nosso endpoint local (Proxy), não o Strapi diretamente
+          const response = await fetch('/api/contacto', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+          });
+
+          if (response.ok) {
+            status.innerText = 'Mensagem enviada com sucesso! Entraremos em contacto brevemente.';
+            status.className = 'form-status success show';
+            form.reset();
+          } else {
+            const errorData = await response.json();
+            console.error('Erro Detalhado da API:', errorData);
+            
+            // Tenta extrair a mensagem de erro do Strapi se disponível
+            const strapiError = errorData?.error?.message || errorData?.message || '';
+            
+            if (response.status === 403 || response.status === 401) {
+              status.innerText = 'Erro de permissão no Strapi. Verifique as permissões da Role Public.';
+            } else if (response.status === 404) {
+              status.innerText = 'Coleção "mensagens" não encontrada no Strapi.';
+            } else {
+              status.innerText = `Erro: ${strapiError || 'Erro no servidor (' + response.status + ')'}`;
+            }
+            status.className = 'form-status error show';
+          }
+        } catch (error) {
+          console.error('Erro de rede:', error);
+          status.innerText = 'Erro de conexão: O servidor de contacto não responde.';
+          status.className = 'form-status error show';
+        } finally {
+          btnSpan.innerText = originalText;
+          btn.disabled = false;
+          
+          setTimeout(() => {
+            if (status.classList.contains('success')) {
+              status.classList.remove('show');
+            }
+          }, 5000);
+        }
+      }
+    });
+  }
+</script>
+
+<style>
+  .contacto-container {
+    background-color: var(--cor-fundo);
+    overflow-x: hidden;
+  }
+
+  /* Header */
+  .contacto-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 300px; /* Reduzido de 400px */
+    align-items: center;
+    gap: 40px;
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 80px 24px 20px; /* Reduzido o padding top e bottom */
+  }
+
+  .header-content h1 {
+    font-family: var(--fonte-titulo);
+    font-size: clamp(2.5rem, 8vw, 4rem);
+    color: var(--cor-principal);
+    margin-bottom: 16px; /* Reduzido de 24px */
+    line-height: 1.1;
+  }
+
+  .contacto-descricao {
+    font-size: 1.1rem;
+    color: var(--cor-texto-suave);
+    max-width: 500px;
+    line-height: 1.6;
+    margin-bottom: 0;
+  }
+
+  .header-image-container {
+    position: relative;
+    height: 300px; /* Altura fixa menor */
+    border-radius: var(--raio);
+    overflow: hidden;
+    box-shadow: var(--sombra);
+  }
+
+  .contacto-imagem {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+  }
+
+  .header-image-container:hover .contacto-imagem {
+    transform: scale(1.05);
+  }
+
+  .image-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to right, var(--cor-fundo), transparent);
+    opacity: 0.3;
+  }
+
+  /* Content Section */
+  .contacto-content {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 20px 24px 60px; /* Reduzido o padding top de 60px para 20px */
+  }
+
+  .contacto-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 80px;
+    align-items: start;
+  }
+
+  .section-title {
+    margin-bottom: 16px;
+    font-size: 2rem;
+  }
+
+  .section-text {
+    margin-bottom: 40px;
+  }
+
+  /* Contact Methods */
+  .contact-methods {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .method-card {
+    display: flex;
+    align-items: flex-start; 
+    gap: 20px;
+    padding: 24px;
+    background: var(--cor-fundo-card);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio);
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .method-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--cor-destaque);
+    box-shadow: var(--sombra);
+  }
+
+  .method-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cor-destaque-claro);
+    color: var(--cor-destaque);
+    border-radius: 12px;
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+  }
+
+  .method-card:hover .method-icon {
+    background: var(--cor-destaque);
+    color: white;
+  }
+
+  .method-details h3 {
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+  }
+
+  .method-details p {
+    font-size: 0.95rem;
+    color: var(--cor-texto-suave);
+    margin: 0;
+  }
+
+  /* Form */
+  .form-container {
+    background: var(--cor-fundo-card);
+    padding: 40px;
+    border-radius: var(--raio);
+    border: 1px solid var(--cor-borda);
+    box-shadow: var(--sombra);
+  }
+
+  .input-group {
+    position: relative;
+    margin-bottom: 30px;
+  }
+
+  .input-group input,
+  .input-group textarea {
+    width: 100%;
+    padding: 12px 0;
+    font-size: 1rem;
+    color: var(--cor-texto);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--cor-borda);
+    outline: none;
+    transition: all 0.3s ease;
+  }
+
+  .input-group label {
+    position: absolute;
+    top: 12px;
+    left: 0;
+    color: var(--cor-texto-suave);
+    pointer-events: none;
+    transition: all 0.3s ease;
+  }
+
+  .input-group input:focus ~ label,
+  .input-group input:not(:placeholder-shown) ~ label,
+  .input-group textarea:focus ~ label,
+  .input-group textarea:not(:placeholder-shown) ~ label {
+    top: -12px;
+    font-size: 0.8rem;
+    color: var(--cor-destaque);
+  }
+
+  .input-group input:focus,
+  .input-group textarea:focus {
+    border-bottom-color: var(--cor-destaque);
+  }
+
+  .submit-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--cor-destaque);
+    color: var(--cor-fundo); /* Contraste automático com o fundo do tema */
+    border: none;
+    border-radius: var(--raio);
+    font-size: 1rem;
+    font-weight: 700; /* Aumentado para melhor legibilidade */
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .submit-btn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px var(--cor-destaque-claro);
+  }
+  }
+
+  .submit-btn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  }
+
+  .submit-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .form-status {
+    margin-top: 24px;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 0.95rem;
+    min-height: 1.2em;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.4s ease;
+  }
+
+  .form-status.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .form-status.success {
+    background: rgba(76, 175, 80, 0.1);
+    border: 1px solid rgba(76, 175, 80, 0.2);
+    color: #4caf50;
+  }
+
+  .form-status.error {
+    background: rgba(244, 67, 54, 0.1);
+    border: 1px solid rgba(244, 67, 54, 0.2);
+    color: #f44336;
+  }
+
+  /* Map */
+  .contacto-mapa {
+    max-width: var(--max-width);
+    margin: 40px auto 80px;
+    padding: 0 24px;
+  }
+
+  .map-wrapper {
+    border-radius: var(--raio);
+    overflow: hidden;
+    box-shadow: var(--sombra);
+    border: 1px solid var(--cor-borda);
+  }
+
+  .map-wrapper iframe {
+    filter: grayscale(0.2) contrast(1.1);
+  }
+
+  /* Animations */
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Responsive */
+  @media (max-width: 968px) {
+    .contacto-header {
+      grid-template-columns: 1fr;
+      text-align: center;
+      padding-top: 60px;
+    }
+
+    .header-content h1 {
+      font-size: 3rem;
+    }
+
+    .contacto-descricao {
+      margin: 0 auto 32px;
+    }
+
+    .header-image-container {
+      height: 250px;
+    }
+
+    .contacto-grid {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+
+    .image-overlay {
+      background: linear-gradient(to top, var(--cor-fundo), transparent);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .form-container {
+      padding: 24px;
+    }
+    
+    .header-content h1 {
+      font-size: 2.5rem;
+    }
+  }
+</style>

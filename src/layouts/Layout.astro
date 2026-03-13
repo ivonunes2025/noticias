@@ -1,0 +1,136 @@
+---
+// Layout base do site:
+// - injeta CSS global
+// - define fontes/título/metadata
+import "../styles/global.css";
+import Footer from "../components/Footer.astro";
+import CookieConsent from "../components/CookieConsent.astro";
+
+// Título da página, com valor por omissão se não for passado via props
+const { titulo = "Noticícias Básicas", lcpImage } = Astro.props;
+
+// Tenta obter o tema do cookie (mais fiável para SSR)
+const themeCookie = Astro.cookies.get('theme')?.value || 'dark';
+---
+
+<!doctype html>
+<html lang="pt" data-theme={themeCookie}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    {/* Pré-carregamento da imagem LCP se fornecida */}
+    {lcpImage && (
+      <link rel="preload" as="image" href={lcpImage} fetchpriority="high" />
+    )}
+    {/* Script crítico para evitar flash de cor errada ao carregar */}
+    <script is:inline>
+      (function() {
+        const getCookie = (name) => {
+          const value = `; ${document.cookie}`;
+          const parts = value.split(`; ${name}=`);
+          if (parts.length === 2) return parts.pop().split(';').shift();
+        };
+        const theme = getCookie('theme') || localStorage.getItem('theme') || 'default';
+        if (theme !== 'default') {
+          document.documentElement.setAttribute('data-theme', theme);
+        }
+      })();
+    </script>
+    {/* Ícones do site (favicon) para diferentes navegadores */}
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    {/* Meta gerado automaticamente pelo Astro */}
+    <meta name="generator" content={Astro.generator} />
+    {/* Pré-conexões e carregamento otimizado de fontes */}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href={import.meta.env.STRAPI_URL} crossorigin />
+    <link rel="dns-prefetch" href={import.meta.env.STRAPI_URL} />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500&display=optional"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500&display=optional"
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500&display=optional"
+        rel="stylesheet"
+      />
+    </noscript>
+    {/* Título da página, dinâmico por rota */}
+    <title>{titulo}</title>
+  </head>
+  <body>
+    {/* Slot onde cada página insere o seu conteúdo */}
+    <slot />
+
+    <CookieConsent />
+    <Footer />
+
+    <script>
+      // Carregar lógica de carrossel apenas quando necessário
+      function initCarousels() {
+        document.querySelectorAll<HTMLElement>(".carrossel").forEach((carrossel) => {
+          const track = carrossel.querySelector<HTMLElement>(".carrossel-track");
+          const prevBtn = carrossel.querySelector<HTMLButtonElement>(".carrossel-prev");
+          const nextBtn = carrossel.querySelector<HTMLButtonElement>(".carrossel-next");
+          const slides = Array.from(carrossel.querySelectorAll<HTMLElement>(".carrossel-slide"));
+
+          if (!track || !prevBtn || !nextBtn || slides.length === 0) return;
+
+          const slideWidth = slides[0].offsetWidth + 24;
+
+          prevBtn.addEventListener("click", () => {
+            track.scrollBy({ left: -slideWidth, behavior: "smooth" });
+          });
+
+          nextBtn.addEventListener("click", () => {
+            track.scrollBy({ left: slideWidth, behavior: "smooth" });
+          });
+
+          let isDown = false;
+          let startX: number;
+          let scrollLeft: number;
+
+          track.addEventListener("mousedown", (e) => {
+            isDown = true;
+            track.classList.add("active");
+            startX = e.pageX - track.offsetLeft;
+            scrollLeft = track.scrollLeft;
+          });
+
+          track.addEventListener("mouseleave", () => {
+            isDown = false;
+            track.classList.remove("active");
+          });
+
+          track.addEventListener("mouseup", () => {
+            isDown = false;
+            track.classList.remove("active");
+          });
+
+          track.addEventListener("mousemove", (e) => {
+            if (!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - track.offsetLeft;
+            const walk = (x - startX) * 2;
+            track.scrollLeft = scrollLeft - walk;
+          });
+        });
+      }
+
+      // Deferir inicialização para não bloquear o LCP
+      if (document.readyState === 'complete') {
+        initCarousels();
+      } else {
+        window.addEventListener('load', initCarousels);
+      }
+    </script>
+  </body>
+</html>

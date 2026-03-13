@@ -1,0 +1,370 @@
+---
+// Página de detalhe de uma notícia (rota dinâmica [id] = slug da notícia)
+// Nota: `prerender = false` implica SSR/on-demand. Em produção, o `astro build`
+// exige um adapter (ex.: node, vercel, netlify). Em dev, funciona sem adapter.
+export const prerender = false;
+import Layout from "../../layouts/Layout.astro";
+import Navbar from "../../components/Navbar.astro";
+import CardNoticia from "../../components/CardNoticia.astro";
+import { getRichText, getImageUrl, formatDate } from "../../utils/strapi";
+
+// URL base do Strapi e slug recebido pela rota
+const STRAPI = import.meta.env.STRAPI_URL;
+const { id } = Astro.params;
+
+// 1. Estado de autenticação
+const userCookie = Astro.cookies.get('user_name');
+const isAuthenticated = !!userCookie?.value;
+
+// 2. Busca a notícia primeiro para saber se é privada
+const res = await fetch(
+  `${STRAPI}/api/noticias?filters[slug][$eq]=${id}&populate=*`,
+).then((r) => r.json());
+
+// Normaliza o objeto de notícia (data[0].attributes ou data[0])
+const noticiaRaw = res.data?.[0];
+const noticia = noticiaRaw?.attributes ?? noticiaRaw;
+
+// 3. BLOQUEIO CRÍTICO: Se for privada e não houver login, redireciona IMEDIATAMENTE
+// Verificamos tanto 'Privadas' (com P maiúsculo) como 'privadas' para garantir
+const isPrivate = noticia?.Privadas === true || noticia?.Privadas === "true" || 
+                  noticia?.privadas === true || noticia?.privadas === "true";
+
+// Removido o Astro.redirect automático para permitir mostrar o "Preview Bloqueado"
+const showLockScreen = isPrivate && !isAuthenticated;
+
+// Notícias relacionadas (mesmas categorias). Usamos `slug` para evitar incluir a própria notícia.
+let relatedNews: any[] = [];
+if (noticia) {
+  const catsRaw = noticia.categorias;
+  const cats: any[] = Array.isArray(catsRaw)
+    ? catsRaw
+    : Array.isArray(catsRaw?.data)
+    ? catsRaw.data
+    : catsRaw?.data
+    ? [catsRaw.data]
+    : [];
+
+  const catSlugs = cats
+    .map((c: any) => c?.attributes?.slug ?? c?.slug)
+    .filter(Boolean);
+
+  if (catSlugs.length > 0) {
+    // Constrói os filtros de categoria para a query
+    const catFilters = catSlugs
+      .map((slug, index) => `filters[categorias][slug][$in][${index}]=${slug}`)
+      .join("&");
+
+    const url = `${STRAPI}/api/noticias?${catFilters}&filters[slug][$ne]=${id}&populate=*&pagination[pageSize]=3&sort=publishedAt:desc`;
+    
+    const relatedRes = await fetch(url).then((r) => r.json());
+    relatedNews = relatedRes.data ?? [];
+  }
+}
+
+---
+
+<Layout titulo={noticia?.titulo}>
+  <Navbar isHome={false} />
+
+  {/* ── Bloqueio Visual para Notícias Privadas ── */}
+  { showLockScreen ? (
+    <section class="detalhe reveal">
+      <a href="/" class="voltar">← Voltar</a>
+      
+      {/* Título AGORA EM CIMA da notícia */}
+      <h1>{noticia?.titulo}</h1>
+
+      <div class="lock-container">
+        <div class="lock-image-wrapper">
+          {getImageUrl(noticia?.capa) && (
+            <img
+              src={getImageUrl(noticia?.capa)}
+              alt={noticia?.titulo}
+              class="detalhe-img blurred"
+            />
+          )}
+          <div class="lock-overlay">
+            <div class="lock-icon-circle">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            </div>
+            <h2>Conteúdo Privado</h2>
+            <p>Esta notícia é exclusiva para membros registados.</p>
+            
+            {/* Botão de Login Bem Visível */}
+            <div class="auth-cta-wrapper">
+              <a href="/login" class="login-redirect-btn">
+                <span>Iniciar Sessão para Ler</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                  <polyline points="10 17 15 12 10 7"></polyline>
+                  <line x1="15" y1="12" x2="3" y2="12"></line>
+                </svg>
+              </a>
+              <p class="auth-hint">Ainda não tem conta? <a href="/registo">Registe-se aqui</a></p>
+            </div>
+          </div>
+        </div>
+        <div class="lock-preview-text">
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line short"></div>
+          <div class="skeleton-line"></div>
+        </div>
+      </div>
+    </section>
+  ) : (
+    <>
+      {/* Mensagem de erro caso a notícia não exista para o slug indicado */}
+      {
+        !noticia && (
+          <section class="detalhe">
+            <h1>Notícia não encontrada</h1>
+            <p>O slug passado foi “{id}”. Verifique o conteúdo no Strapi.</p>
+          </section>
+        )
+      }
+
+      {/* Conteúdo principal do detalhe */}
+      <section class="detalhe">
+        <a href="/" class="voltar">← Voltar</a>
+
+        {
+          getImageUrl(noticia?.capa) && (
+            <img
+              src={getImageUrl(noticia?.capa)}
+              alt={noticia?.titulo}
+              class="detalhe-img"
+            />
+          )
+        }
+
+        {
+          noticia?.publishedAt && (
+            <span class="detalhe-data">{formatDate(noticia.publishedAt)}</span>
+          )
+        }
+
+        <h1>{noticia?.titulo}</h1>
+        <div class="detalhe-texto">{getRichText(noticia?.conteudo)}</div>
+      </section>
+
+      {
+        relatedNews.length > 0 && (
+          <section class="relacionadas">
+            <h2>Notícias relacionadas</h2>
+            <div class="noticias-grid">
+              {relatedNews.map((n: any) => (
+                <CardNoticia noticia={n} />
+              ))}
+            </div>
+          </section>
+        )
+      }
+    </>
+  )}
+</Layout>
+
+<style>
+  .detalhe {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 60px 24px;
+  }
+
+  .voltar {
+    display: inline-block;
+    color: var(--cor-principal);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 32px;
+    transition: opacity 0.2s ease;
+  }
+
+  .voltar:hover {
+    opacity: 0.7;
+  }
+
+  .detalhe-img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: var(--raio);
+    margin-bottom: 32px;
+    box-shadow: var(--sombra);
+  }
+
+  .detalhe-img.blurred {
+    filter: blur(15px) brightness(0.5);
+    transform: scale(1.02);
+  }
+
+  .detalhe-data {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--cor-destaque);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+
+  h1 {
+    font-family: var(--fonte-titulo);
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    line-height: 1.1;
+    color: var(--cor-principal);
+    margin-bottom: 32px;
+  }
+
+  .detalhe-texto {
+    font-size: 1.15rem;
+    line-height: 1.8;
+    color: var(--cor-texto);
+    text-align: justify;
+  }
+
+  .detalhe-texto :global(p) {
+    margin-bottom: 24px;
+  }
+
+  /* Estilos do Bloqueio */
+  .lock-container {
+    position: relative;
+    border-radius: var(--raio);
+    overflow: hidden;
+    background: var(--cor-fundo-card);
+    border: 1px solid var(--cor-borda);
+  }
+
+  .lock-image-wrapper {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .lock-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    text-align: center;
+    z-index: 10;
+  }
+
+  .lock-icon-circle {
+    width: 80px;
+    height: 80px;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cor-destaque);
+    margin-bottom: 24px;
+    border: 2px solid var(--cor-destaque-claro);
+  }
+
+  .lock-overlay h2 {
+    color: white;
+    font-family: var(--fonte-titulo);
+    font-size: 2rem;
+    margin-bottom: 16px; /* Aumentado de 8px para 16px para dar mais espaço */
+  }
+
+  .lock-overlay p {
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 32px;
+  }
+
+  .login-redirect-btn {
+    background: var(--cor-destaque);
+    color: white !important;
+    text-decoration: none !important;
+    padding: 16px 32px;
+    border-radius: var(--raio);
+    font-weight: 700;
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+    border: none;
+    cursor: pointer;
+  }
+
+  .login-redirect-btn:hover {
+    transform: translateY(-3px) scale(1.02);
+    filter: brightness(1.1);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+  }
+
+  .auth-cta-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .auth-hint {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.6) !important;
+    margin: 0 !important;
+  }
+
+  .auth-hint a {
+    color: var(--cor-destaque);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .auth-hint a:hover {
+    text-decoration: underline;
+  }
+
+  .lock-preview-text {
+    padding: 40px;
+  }
+
+  .skeleton-line {
+    height: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    margin-bottom: 12px;
+    width: 100%;
+  }
+
+  .skeleton-line.short {
+    width: 60%;
+  }
+
+  /* Relacionadas */
+  .relacionadas {
+    background: rgba(255, 255, 255, 0.02);
+    border-top: 1px solid var(--cor-borda);
+    padding: 80px 24px;
+    margin-top: 60px;
+  }
+
+  .relacionadas h2 {
+    max-width: 800px;
+    margin: 0 auto 40px;
+  }
+
+  /* Animação */
+  .reveal {
+    animation: fadeIn 0.8s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>

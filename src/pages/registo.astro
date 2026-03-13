@@ -1,0 +1,251 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Navbar from "../components/Navbar.astro";
+
+// Se o utilizador já estiver logado (tem o cookie user_name), redireciona para a home
+const user = Astro.cookies.get('user_name')?.value;
+if (user) {
+  return Astro.redirect('/');
+}
+---
+
+<Layout titulo="Registo - Notícias Básicas">
+  <Navbar isHome={false} />
+
+  <main class="auth-container">
+    <div class="auth-card reveal">
+      <div class="auth-header">
+        <h1>Crie a sua conta</h1>
+        <p>Junte-se a nós para uma experiência de notícias personalizada.</p>
+      </div>
+
+      <form id="registo-form">
+        <div class="input-group">
+          <input type="text" id="username" name="username" required placeholder=" " />
+          <label for="username">Nome de Utilizador</label>
+        </div>
+
+        <div class="input-group">
+          <input type="email" id="email" name="email" required placeholder=" " />
+          <label for="email">O seu Email</label>
+        </div>
+
+        <div class="input-group">
+          <input type="password" id="password" name="password" required placeholder=" " />
+          <label for="password">Palavra-passe</label>
+        </div>
+
+        <button type="submit" class="auth-btn">
+          <span>Criar Conta</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+        </button>
+
+        <div id="auth-status" class="auth-status"></div>
+      </form>
+
+      <div class="auth-footer">
+        <p>Já tem uma conta? <a href="/login">Inicie sessão</a></p>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  const form = document.getElementById('registo-form') as HTMLFormElement;
+  const status = document.getElementById('auth-status');
+
+  if (form && status) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector('.auth-btn') as HTMLButtonElement;
+      const btnSpan = btn.querySelector('span');
+      
+      const formData = new FormData(form);
+      const username = formData.get('username');
+      const email = formData.get('email');
+      const password = formData.get('password');
+
+      if (btnSpan) {
+        const originalText = btnSpan.innerText;
+        btnSpan.innerText = 'A criar conta...';
+        btn.disabled = true;
+        status.innerText = '';
+        status.className = 'auth-status';
+
+        try {
+          const response = await fetch('/api/auth/registo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email, password }),
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            status.innerText = 'Conta criada com sucesso! A redirecionar...';
+            status.className = 'auth-status success show';
+            setTimeout(() => window.location.href = '/', 1500);
+          } else {
+            status.innerText = result.error || 'Erro ao criar conta.';
+            status.className = 'auth-status error show';
+            btnSpan.innerText = originalText;
+            btn.disabled = false;
+          }
+        } catch (error) {
+          status.innerText = 'Erro de conexão.';
+          status.className = 'auth-status error show';
+          btnSpan.innerText = originalText;
+          btn.disabled = false;
+        }
+      }
+    });
+  }
+
+  // Animação de revelação
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) entry.target.classList.add('active');
+    });
+  });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+<style>
+  /* Partilha estilos com o login para consistência */
+  .auth-container {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    background-color: var(--cor-fundo);
+  }
+
+  .auth-card {
+    width: 100%;
+    max-width: 450px;
+    background: var(--cor-fundo-card);
+    padding: 48px;
+    border-radius: var(--raio);
+    border: 1px solid var(--cor-borda);
+    box-shadow: var(--sombra);
+  }
+
+  .auth-header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .auth-header h1 {
+    font-family: var(--fonte-titulo);
+    font-size: 2.2rem;
+    margin-bottom: 12px;
+    color: var(--cor-principal);
+  }
+
+  .auth-header p {
+    color: var(--cor-texto-suave);
+    font-size: 0.95rem;
+  }
+
+  /* Grupos de Input */
+  .input-group {
+    position: relative;
+    margin-bottom: 32px;
+  }
+
+  .input-group input {
+    width: 100%;
+    padding: 12px 0;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--cor-borda);
+    color: var(--cor-texto);
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.3s ease;
+  }
+
+  .input-group label {
+    position: absolute;
+    top: 12px;
+    left: 0;
+    color: var(--cor-texto-suave);
+    pointer-events: none;
+    transition: all 0.3s ease;
+  }
+
+  .input-group input:focus ~ label,
+  .input-group input:not(:placeholder-shown) ~ label {
+    top: -12px;
+    font-size: 0.8rem;
+    color: var(--cor-destaque);
+  }
+
+  .input-group input:focus {
+    border-bottom-color: var(--cor-destaque);
+  }
+
+  /* Botão */
+  .auth-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--cor-destaque);
+    color: white;
+    border: none;
+    border-radius: var(--raio);
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    transition: all 0.3s ease;
+  }
+
+  .auth-btn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  }
+
+  .auth-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  /* Status e Rodapé */
+  .auth-status {
+    margin-top: 20px;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 0.9rem;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s ease;
+  }
+
+  .auth-status.show { opacity: 1; transform: translateY(0); }
+  .auth-status.success { background: rgba(76, 175, 80, 0.1); color: #4caf50; }
+  .auth-status.error { background: rgba(244, 67, 54, 0.1); color: #f44336; }
+
+  .auth-footer {
+    margin-top: 32px;
+    text-align: center;
+    font-size: 0.95rem;
+  }
+
+  .auth-footer a {
+    color: var(--cor-destaque);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .auth-footer a:hover { text-decoration: underline; }
+
+  /* Animações */
+  .reveal { opacity: 0; transform: translateY(20px); transition: all 0.6s ease; }
+  .reveal.active { opacity: 1; transform: translateY(0); }
+</style>

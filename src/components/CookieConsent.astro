@@ -1,0 +1,178 @@
+---
+/**
+ * Componente de Consentimento de Cookies
+ * Aparece apenas se o utilizador ainda não tiver feito uma escolha.
+ */
+---
+
+<div id="cookie-banner" class="cookie-banner" style="display: none;">
+  <div class="cookie-content">
+    <div class="cookie-text">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5" />
+        <path d="M8.5 8.5v.01" />
+        <path d="M16 15.5v.01" />
+        <path d="M12 12v.01" />
+        <path d="M11 17v.01" />
+        <path d="M7 14v.01" />
+      </svg>
+      <p>
+        Utilizamos cookies para personalizar o seu conteúdo e melhorar a sua experiência. 
+        Ao continuar, aceita a nossa <a href="/privacidade">Política de Privacidade</a>.
+      </p>
+    </div>
+    <div class="cookie-actions">
+      <button id="reject-cookies" class="cookie-btn cookie-btn--secondary">Rejeitar</button>
+      <button id="accept-cookies" class="cookie-btn cookie-btn--primary">Aceitar Tudo</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .cookie-banner {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    right: 24px;
+    background: rgba(18, 18, 18, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 20px 24px;
+    z-index: 9999;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.5s ease-out;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .cookie-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .cookie-text {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    color: var(--cor-principal, #fff);
+  }
+
+  .cookie-text svg {
+    color: var(--cor-destaque, #c8963e);
+    flex-shrink: 0;
+  }
+
+  .cookie-text p {
+    font-size: 0.92rem;
+    line-height: 1.5;
+    margin: 0;
+    max-width: 100%;
+  }
+
+  .cookie-text a {
+    color: var(--cor-destaque);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .cookie-actions {
+    display: flex;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .cookie-btn {
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    white-space: nowrap;
+  }
+
+  .cookie-btn--primary {
+    background: var(--cor-destaque, #c8963e);
+    color: #000; /* Texto escuro por padrão (modo escuro) */
+  }
+
+  :global([data-theme="light"]) .cookie-btn--primary {
+    color: #fff; /* Texto claro no modo claro */
+  }
+
+  .cookie-btn--primary:hover {
+    background: #b08234;
+    transform: translateY(-2px);
+  }
+
+  .cookie-btn--secondary {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--cor-principal, #fff);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .cookie-btn--secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  @media (max-width: 768px) {
+    .cookie-banner {
+      bottom: 16px;
+      left: 16px;
+      right: 16px;
+      padding: 16px;
+    }
+
+    .cookie-content {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .cookie-actions {
+      width: 100%;
+    }
+
+    .cookie-btn {
+      flex: 1;
+      text-align: center;
+    }
+  }
+</style>
+
+<script>
+  import { setCookie, getCookie } from "../utils/cookies";
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const banner = document.getElementById("cookie-banner");
+    const acceptBtn = document.getElementById("accept-cookies");
+    const rejectBtn = document.getElementById("reject-cookies");
+
+    // Verificar se já existe consentimento
+    const consent = getCookie("cookie-consent");
+
+    if (!consent && banner) {
+      banner.style.display = "block";
+    }
+
+    acceptBtn?.addEventListener("click", () => {
+      setCookie("cookie-consent", "accepted", 365);
+      if (banner) banner.style.display = "none";
+    });
+
+    rejectBtn?.addEventListener("click", () => {
+      setCookie("cookie-consent", "rejected", 30); // Rejeitado dura menos tempo
+      if (banner) banner.style.display = "none";
+    });
+  });
+</script>

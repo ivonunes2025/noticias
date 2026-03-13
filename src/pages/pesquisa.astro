@@ -1,0 +1,275 @@
+---
+// Página de resultados de pesquisa
+// - rota: /pesquisa?q=termo
+// - origem: campo de pesquisa da Navbar (Enter)
+export const prerender = false;
+
+import Layout from "../layouts/Layout.astro";
+import Navbar from "../components/Navbar.astro";
+import { getRichText, formatDate, getImageUrl } from "../utils/strapi";
+
+const STRAPI = import.meta.env.STRAPI_URL;
+const q = (Astro.url.searchParams.get("q") ?? "").trim();
+
+let noticias: any[] = [];
+let categorias: any[] = [];
+
+if (q && STRAPI) {
+  try {
+    const encoded = encodeURIComponent(q);
+
+    const [noticiasRes, categoriasRes] = await Promise.all([
+      fetch(
+        `${STRAPI}/api/noticias?` +
+          `filters[$or][0][titulo][$containsi]=${encoded}&` +
+          `filters[$or][1][conteudo][$containsi]=${encoded}&populate=*`,
+      )
+        .then((r) => r.json())
+        .catch(() => ({ data: [] })),
+      fetch(`${STRAPI}/api/categorias?filters[nome][$containsi]=${encoded}`)
+        .then((r) => r.json())
+        .catch(() => ({ data: [] })),
+    ]);
+
+    noticias = Array.isArray(noticiasRes?.data) ? noticiasRes.data : [];
+    categorias = Array.isArray(categoriasRes?.data) ? categoriasRes.data : [];
+
+    // Estado de autenticação (Cookies) para filtrar notícias privadas
+    const userCookie = Astro.cookies.get('user_name');
+    const isAuthenticated = !!userCookie?.value;
+
+    if (!isAuthenticated) {
+      noticias = noticias.filter((n: any) => {
+        const attrs = n.attributes ?? n;
+        return attrs.privadas !== true;
+      });
+    }
+  } catch (e) {
+    console.error("Erro ao pesquisar no Strapi:", e);
+  }
+}
+
+const temResultados = noticias.length > 0 || categorias.length > 0;
+---
+
+<Layout titulo={q ? `Resultados para "${q}"` : "Pesquisa"}>
+  <Navbar isHome={false} />
+
+  <section class="pesquisa">
+    <a href="/" class="voltar">← Voltar</a>
+    <h1>Resultados da pesquisa</h1>
+
+    {
+      q ? (
+        <p class="pesquisa-query">
+          Resultados para <strong>"{q}"</strong>
+        </p>
+      ) : (
+        <p class="pesquisa-query">
+          Introduza um termo de pesquisa na barra superior.
+        </p>
+      )
+    }
+
+    {q && !temResultados && <p class="sem-resultados">Não há resultados.</p>}
+
+    {
+      q && temResultados && (
+        <div class="resultados-wrapper">
+          {categorias.length > 0 && (
+            <section class="bloco-resultados">
+              <h2>Categorias</h2>
+              <ul class="lista-categorias">
+                {categorias.map((c: any) => {
+                  const attrs = c.attributes ?? c;
+                  const slug = attrs.slug ?? c.id;
+                  return (
+                    <li>
+                      <a href={`/categorias/${slug}`}>
+                        {attrs.nome ?? attrs.name ?? "Categoria"}
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
+          {noticias.length > 0 && (
+            <section class="bloco-resultados">
+              <h2>Notícias</h2>
+              <div class="noticias-grid">
+                {noticias.map((n: any) => {
+                  const attrs = n.attributes ?? n;
+                  if (!attrs.slug) return null;
+                  return (
+                    <a href={`/noticias/${attrs.slug}`} class="noticia">
+                      {getImageUrl(attrs.capa) && (
+                        <img
+                          src={getImageUrl(attrs.capa)}
+                          alt={attrs.titulo}
+                          class="noticia-img"
+                        />
+                      )}
+                      <div class="noticia-corpo">
+                        {attrs.publishedAt && (
+                          <span class="noticia-data">
+                            {formatDate(attrs.publishedAt)}
+                          </span>
+                        )}
+                        <h3>{attrs.titulo}</h3>
+                        <p class="noticia-resumo">
+                          {getRichText(attrs.conteudo)}
+                        </p>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+        </div>
+      )
+    }
+  </section>
+</Layout>
+
+<style>
+  .pesquisa {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 60px 24px;
+  }
+
+  .voltar {
+    display: inline-block;
+    color: var(--cor-principal);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 32px;
+    transition: opacity 0.2s ease;
+  }
+
+  .voltar:hover {
+    opacity: 0.7;
+  }
+
+  .pesquisa h1 {
+    font-family: var(--fonte-titulo);
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    color: var(--cor-principal);
+    margin-bottom: 8px;
+  }
+
+  .pesquisa-query {
+    color: var(--cor-texto-suave);
+    margin-bottom: 32px;
+  }
+
+  .sem-resultados {
+    margin-top: 16px;
+    font-style: italic;
+    color: var(--cor-texto-suave);
+  }
+
+  .resultados-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .bloco-resultados h2 {
+    font-size: 1.2rem;
+    margin-bottom: 16px;
+  }
+
+  .lista-categorias {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .lista-categorias a {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    text-decoration: none;
+    color: var(--cor-principal);
+    font-size: 0.85rem;
+    transition:
+      background 0.2s ease,
+      border-color 0.2s ease,
+      color 0.2s ease;
+  }
+
+  .lista-categorias a:hover {
+    background: var(--cor-destaque-claro);
+    border-color: var(--cor-destaque);
+    color: #000;
+  }
+
+  .noticias-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 28px;
+  }
+
+  a.noticia {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    background: #1a1a1a;
+    border-radius: var(--raio);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    overflow: hidden;
+    transition:
+      transform 0.25s ease,
+      box-shadow 0.25s ease,
+      border-color 0.25s ease;
+  }
+
+  a.noticia:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+    border-color: rgba(200, 150, 62, 0.3);
+  }
+
+  .noticia-img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 0;
+  }
+
+  .noticia-corpo {
+    padding: 24px;
+  }
+
+  .noticia-data {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--cor-destaque);
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  .noticia h3 {
+    margin-bottom: 12px;
+  }
+
+  .noticia-resumo {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 0.9rem;
+    max-width: 100%;
+  }
+</style>

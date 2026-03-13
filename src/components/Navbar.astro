@@ -1,0 +1,866 @@
+---
+// Navbar do site
+// Props:
+//   isHome: boolean — se true, os links apontam para secções (#noticias, etc.)
+//                     se false, apontam para a página inicial (/)
+
+const { isHome = false } = Astro.props;
+
+const STRAPI = import.meta.env.STRAPI_URL;
+
+let categorias: any[] = [];
+let paginas: any[] = [];
+let noticias: any[] = [];
+
+try {
+  if (STRAPI) {
+    const [catRes, pagRes, notRes] = await Promise.all([
+      fetch(`${STRAPI}/api/categorias?pagination[pageSize]=20&sort=nome:asc`),
+      fetch(`${STRAPI}/api/paginas?fields=titulo,slug&sort=titulo:asc`),
+      fetch(`${STRAPI}/api/noticias?fields=titulo,slug&pagination[pageSize]=100&sort=publishedAt:desc`)
+    ]);
+
+    if (catRes.ok) {
+      const json = await catRes.json();
+      categorias = Array.isArray(json?.data) ? json.data : [];
+    }
+
+    if (pagRes.ok) {
+      const json = await pagRes.json();
+      paginas = Array.isArray(json?.data) ? json.data : [];
+    }
+
+    if (notRes.ok) {
+      const json = await notRes.json();
+      noticias = Array.isArray(json?.data) ? json.data : [];
+    }
+  }
+} catch (e) {
+  categorias = [];
+  paginas = [];
+  noticias = [];
+}
+
+// Prepara dados para a pesquisa live (autocomplete)
+const searchItems = [
+  ...categorias.map(c => {
+    const a = c.attributes ?? c;
+    return { label: a.nome ?? a.name, href: `/categorias/${a.slug ?? c.id}`, type: 'Categoria' };
+  }),
+  ...paginas.map(p => {
+    const a = p.attributes ?? p;
+    return { label: a.titulo, href: `/${a.slug}`, type: 'Página' };
+  }),
+  ...noticias.map(n => {
+    const a = n.attributes ?? n;
+    return { label: a.titulo, href: `/noticias/${a.slug}`, type: 'Notícia' };
+  })
+];
+
+// Estado de autenticação (Cookies)
+const user = Astro.cookies.get('user_name')?.value;
+---
+
+<header class="navbar">
+  <div class="navbar-inner">
+
+    <!-- Logo -->
+    <a href="/" class="navbar-logo">
+      Notícias<span>Básicas</span>
+    </a>
+
+    <!-- Links de navegação -->
+    <nav class="navbar-nav">
+      <a href={isHome ? "#noticias" : "/#noticias"} class="nav-link">Em Destaque</a>
+      <a href={isHome ? "#ultimas" : "/#ultimas"} class="nav-link">Últimas</a>
+
+      {paginas.filter(p => {
+        const attrs = p.attributes ?? p;
+        return attrs.slug !== 'contacto';
+      }).map(p => {
+        const attrs = p.attributes ?? p;
+        return <a href={`/${attrs.slug}`} class="nav-link">{attrs.titulo}</a>;
+      })}
+
+
+      <!-- Dropdown Categorias -->
+      {categorias.length > 0 && (
+        <div class="nav-dropdown" id="cat-dropdown">
+          <button class="nav-link nav-dropdown-btn" id="cat-btn" aria-haspopup="true" aria-expanded="false">
+            Categorias
+            <svg class="dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          <div class="dropdown-menu" id="cat-menu" role="menu">
+            {categorias.map((cat: any) => {
+              const attrs = cat.attributes ?? cat;
+              const slug = attrs.slug ?? cat.id;
+              const nome = attrs.nome ?? attrs.name ?? slug;
+              return (
+                <a href={`/categorias/${slug}`} class="dropdown-item" role="menuitem">{nome}</a>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <a href="/contacto" class="nav-link">Contacto</a>
+      
+      {user ? (
+        <div class="nav-dropdown" id="user-dropdown">
+          <button class="nav-link nav-dropdown-btn" id="user-btn" aria-haspopup="true" aria-expanded="false">
+            <svg class="profile-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            {user}
+          </button>
+          <div class="dropdown-menu" id="user-menu" role="menu">
+            <a href="/perfil" class="dropdown-item">Preferências</a>
+            <button id="logout-btn" class="dropdown-item logout-item">Sair</button>
+          </div>
+        </div>
+      ) : (
+        <a href="/login" class="nav-link login-link">
+          <svg class="profile-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line>
+          </svg>
+          Entrar
+        </a>
+      )}
+    </nav>
+
+    <!-- Ações (Pesquisa, Tema e Burger) -->
+    <div class="navbar-actions">
+      <!-- Pesquisa -->
+      <div class="navbar-search" id="navbar-search-desktop">
+        <input
+          type="text"
+          id="pesquisa-input"
+          placeholder="Pesquisar..."
+          class="search-input"
+          autocomplete="off"
+        />
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <div class="search-results-dropdown" id="results-desktop"></div>
+      </div>
+    
+      
+      <!-- Menu mobile -->
+      <button class="navbar-burger" id="burger-btn" aria-label="Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Nav mobile -->
+  <div class="navbar-mobile" id="mobile-menu">
+    <a href={isHome ? "#noticias" : "/#noticias"} class="nav-link-mobile">Em Destaque</a>
+    <a href={isHome ? "#ultimas" : "/#ultimas"} class="nav-link-mobile">Últimas</a>
+
+    {paginas.filter(p => {
+      const attrs = p.attributes ?? p;
+      return attrs.slug !== 'contacto';
+    }).map(p => {
+      const attrs = p.attributes ?? p;
+      return <a href={`/${attrs.slug}`} class="nav-link-mobile">{attrs.titulo}</a>;
+    })}
+
+    <!-- Categorias mobile (acordeão) -->
+    {categorias.length > 0 && (
+      <div class="mobile-cat-section">
+        <button class="nav-link-mobile mobile-cat-btn" id="mobile-cat-btn">
+          Categorias
+          <svg class="dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <div class="mobile-cat-list" id="mobile-cat-list">
+          {categorias.map((cat: any) => {
+            const attrs = cat.attributes ?? cat;
+            const slug = attrs.slug ?? cat.id;
+            const nome = attrs.nome ?? attrs.name ?? slug;
+            return (
+              <a href={`/categorias/${slug}`} class="nav-link-mobile nav-link-mobile--sub">{nome}</a>
+            );
+          })}
+        </div>
+      </div>
+    )}
+ 
+    <a href="/contacto" class="nav-link-mobile">Contacto</a>
+    
+    {user ? (
+      <>
+        <a href="/perfil" class={`nav-link-mobile ${Astro.url.pathname === '/perfil' ? 'ativo' : ''}`}>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg class="profile-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            O Meu Perfil ({user})
+          </div>
+        </a>
+        <button id="logout-btn-mobile" class="nav-link-mobile" style="width: 100%; border: none; background: none; cursor: pointer; justify-content: flex-start;">
+          <svg style="margin-right: 8px;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          Sair
+        </button>
+      </>
+    ) : (
+      <a href="/login" class="nav-link-mobile">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <svg class="profile-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line>
+          </svg>
+          Entrar / Registar
+        </div>
+      </a>
+    )}
+    
+    <div class="mobile-search" id="navbar-search-mobile">
+      <input
+        type="text"
+        id="pesquisa-input-mobile"
+        placeholder="Pesquisar..."
+        class="search-input"
+        autocomplete="off"
+      />
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <div class="search-results-dropdown" id="results-mobile"></div>
+    </div>
+  </div>
+</header>
+
+<style>
+  .navbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 10, 10, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  .navbar-inner {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 0 24px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  @media (max-width: 768px) {
+    .navbar-inner {
+      height: 54px; /* Navbar mais baixa no mobile */
+    }
+  }
+
+  /* Logo */
+  .navbar-logo {
+    font-family: var(--fonte-titulo);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--cor-principal);
+    text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: -0.02em;
+  }
+
+  .navbar-logo span {
+    color: var(--cor-destaque, #c8963e);
+  }
+
+  /* Nav links */
+  .navbar-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+    overflow: visible;
+    flex-shrink: 0;
+  }
+
+  .nav-link {
+    font-family: var(--fonte-corpo);
+    color: var(--cor-texto-suave, #888);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 8px;
+    white-space: nowrap;
+    transition: color 0.2s, background 0.2s;
+    text-transform: capitalize;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .nav-link:hover,
+  .nav-link.ativo {
+    color: var(--cor-principal);
+    background: var(--cor-destaque-claro);
+  }
+
+  .perfil-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--cor-borda, rgba(255,255,255,0.1));
+    margin-left: 8px;
+  }
+
+  .perfil-link:hover {
+    border-color: var(--cor-destaque);
+  }
+
+  .profile-icon {
+    color: var(--cor-destaque);
+  }
+
+  /* Ações (Tema e Burger) */
+  .navbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  /* Theme Toggle (Simples e Pequeno) */
+  .theme-toggle-btn {
+    background: var(--cor-destaque-claro);
+    border: 1px solid var(--cor-borda);
+    color: var(--cor-principal);
+    cursor: pointer;
+    width: 34px; /* Tamanho reduzido */
+    height: 34px; /* Tamanho reduzido */
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    padding: 0;
+  }
+
+  .theme-toggle-btn:hover {
+    background: rgba(200, 150, 62, 0.2);
+    transform: rotate(15deg);
+    border-color: var(--cor-destaque);
+  }
+
+  .sun-icon { display: block; }
+  .moon-icon { display: none; }
+
+  :global([data-theme="light"]) .sun-icon { display: none; }
+  :global([data-theme="light"]) .moon-icon { display: block; }
+
+  /* Dropdown */
+  .nav-dropdown {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .nav-dropdown-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .dropdown-arrow {
+    transition: transform 0.25s ease;
+    flex-shrink: 0;
+  }
+
+  .nav-dropdown.aberto .dropdown-arrow {
+    transform: rotate(180deg);
+  }
+
+  .dropdown-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    min-width: 200px;
+    max-height: 320px;
+    overflow-y: auto;
+    background: rgba(18, 18, 18, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  /* Scrollbar discreta */
+  .dropdown-menu::-webkit-scrollbar { width: 4px; }
+  .dropdown-menu::-webkit-scrollbar-track { background: transparent; }
+  .dropdown-menu::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+
+  .nav-dropdown.aberto .dropdown-menu {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateY(0);
+  }
+
+  .dropdown-item {
+    color: var(--cor-texto-suave, #888);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 8px 12px;
+    border-radius: 8px;
+    white-space: nowrap;
+    transition: color 0.2s, background 0.2s;
+    text-transform: capitalize;
+  }
+
+  .dropdown-item:hover {
+    color: var(--cor-principal);
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .logout-item {
+    margin-top: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 10px;
+    color: #ff5252; /* Vermelho suave para indicar ação de saída */
+    background: transparent;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .logout-item:hover {
+    background: rgba(255, 82, 82, 0.1) !important;
+    color: #ff5252 !important;
+  }
+
+  /* Removida a exceção do tema P&B para manter o vermelho consistente */
+  
+  /* Pesquisa */
+  .navbar-search {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .search-results-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 320px;
+    max-height: 400px;
+    overflow-y: auto;
+    background: rgba(18, 18, 18, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 1000;
+  }
+
+  .search-results-dropdown.active {
+    display: flex;
+  }
+
+  .search-result-item {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background 0.2s;
+  }
+
+  .search-result-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .search-result-label {
+    color: var(--cor-principal);
+    font-size: 0.88rem;
+    font-weight: 500;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .search-result-type {
+    color: var(--cor-destaque, #c8963e);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+  }
+
+  .search-no-results {
+    padding: 16px;
+    color: var(--cor-texto-suave);
+    font-size: 0.85rem;
+    text-align: center;
+    font-style: italic;
+  }
+
+  .search-input {
+    font-family: var(--fonte-corpo);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 7px 14px 7px 36px;
+    color: var(--cor-principal);
+    font-size: 0.83rem;
+    width: 180px;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s, width 0.3s;
+  }
+
+  .search-input::placeholder {
+    color: var(--cor-texto-suave, #888);
+  }
+
+  .search-input:focus {
+    border-color: var(--cor-destaque, #c8963e);
+    background: rgba(255, 255, 255, 0.08);
+    width: 220px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--cor-texto-suave, #888);
+    pointer-events: none;
+  }
+
+  /* Burger */
+  .navbar-burger {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    flex-shrink: 0;
+  }
+
+  .navbar-burger span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: var(--cor-principal);
+    border-radius: 2px;
+    transition: transform 0.3s, opacity 0.3s;
+  }
+
+  .navbar-burger.aberto span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .navbar-burger.aberto span:nth-child(2) { opacity: 0; }
+  .navbar-burger.aberto span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  /* Mobile menu */
+  .navbar-mobile {
+    display: none;
+    flex-direction: column;
+    padding: 12px 24px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    gap: 4px;
+  }
+
+  .navbar-mobile.aberto {
+    display: flex;
+  }
+
+  .nav-link-mobile {
+    color: var(--cor-texto-suave, #888);
+    text-decoration: none;
+    font-size: 0.92rem;
+    font-weight: 500;
+    padding: 10px 12px;
+    border-radius: 8px;
+    transition: color 0.2s, background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-transform: capitalize;
+  }
+
+  .nav-link-mobile:hover,
+  .nav-link-mobile.ativo {
+    color: var(--cor-principal);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .nav-link-mobile.ativo {
+    border-left: 3px solid var(--cor-destaque);
+  }
+
+  /* Categorias mobile */
+  .mobile-cat-section {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobile-cat-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    width: 100%;
+    text-align: left;
+  }
+
+  .mobile-cat-list {
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 12px;
+    border-left: 2px solid rgba(200, 150, 62, 0.3);
+    margin-left: 12px;
+    margin-bottom: 4px;
+  }
+
+  .mobile-cat-list.aberto {
+    display: flex;
+  }
+
+  .mobile-cat-btn.aberto .dropdown-arrow {
+    transform: rotate(180deg);
+  }
+
+  .nav-link-mobile--sub {
+    font-size: 0.87rem;
+    padding: 8px 10px;
+    justify-content: flex-start;
+  }
+
+  #logout-btn-mobile {
+    margin-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+    padding-top: 16px !important;
+    color: #ff5252 !important;
+  }
+
+  .mobile-search {
+    position: relative;
+    margin-top: 8px;
+  }
+
+  .mobile-search .search-results-dropdown {
+    width: 100%;
+    left: 0;
+    right: 0;
+  }
+
+  .mobile-search .search-input {
+    width: 100%;
+  }
+
+  .mobile-search .search-input:focus {
+    width: 100%;
+  }
+
+  /* Responsivo */
+  @media (max-width: 768px) {
+    .navbar-nav,
+    .navbar-search {
+      display: none;
+    }
+
+    .navbar-burger {
+      display: flex;
+    }
+
+    .navbar-actions {
+      margin-left: auto;
+      gap: 12px;
+    }
+  }
+</style>
+
+<script define:vars={{ searchItems }}>
+  // Burger menu toggle
+  const burger = document.getElementById("burger-btn");
+  const mobileMenu = document.getElementById("mobile-menu");
+
+  burger?.addEventListener("click", () => {
+    burger.classList.toggle("aberto");
+    mobileMenu?.classList.toggle("aberto");
+  });
+
+  // Fechar menu ao clicar num link mobile
+  document.querySelectorAll(".nav-link-mobile").forEach((link) => {
+    link.addEventListener("click", () => {
+      if (!link.classList.contains("mobile-cat-btn")) {
+        burger?.classList.remove("aberto");
+        mobileMenu?.classList.remove("aberto");
+      }
+    });
+  });
+
+  // Dropdown desktop — toggle ao clicar
+  const catBtn = document.getElementById("cat-btn");
+  const catDropdown = document.getElementById("cat-dropdown");
+  const userBtn = document.getElementById("user-btn");
+  const userDropdown = document.getElementById("user-dropdown");
+
+  function toggleDropdown(btn, dropdown) {
+    if (!btn || !dropdown) return;
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle("aberto");
+      btn.setAttribute("aria-expanded", String(dropdown.classList.contains("aberto")));
+      
+      // Fechar o outro dropdown se estiver aberto
+      const otherDropdown = dropdown === catDropdown ? userDropdown : catDropdown;
+      const otherBtn = dropdown === catDropdown ? userBtn : catBtn;
+      otherDropdown?.classList.remove("aberto");
+      otherBtn?.setAttribute("aria-expanded", "false");
+    });
+  }
+
+  toggleDropdown(catBtn, catDropdown);
+  toggleDropdown(userBtn, userDropdown);
+
+  // Lógica de Logout
+  const logoutBtn = document.getElementById("logout-btn");
+  const logoutBtnMobile = document.getElementById("logout-btn-mobile");
+
+  [logoutBtn, logoutBtnMobile].forEach(btn => {
+    btn?.addEventListener("click", async () => {
+      const res = await fetch("/api/auth/logout", { method: "POST" });
+      if (res.ok) window.location.href = "/";
+    });
+  });
+
+  // Fechar dropdown ao clicar fora
+  document.addEventListener("click", (e) => {
+    if (!catDropdown?.contains(e.target) && !userDropdown?.contains(e.target)) {
+      catDropdown?.classList.remove("aberto");
+      catBtn?.setAttribute("aria-expanded", "false");
+      userDropdown?.classList.remove("aberto");
+      userBtn?.setAttribute("aria-expanded", "false");
+    }
+    // Fechar pesquisa ao clicar fora
+    document.querySelectorAll('.search-results-dropdown').forEach(d => d.classList.remove('active'));
+  });
+
+  // Fechar dropdown ao pressionar Escape
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      catDropdown?.classList.remove("aberto");
+      catBtn?.setAttribute("aria-expanded", "false");
+      userDropdown?.classList.remove("aberto");
+      userBtn?.setAttribute("aria-expanded", "false");
+      document.querySelectorAll('.search-results-dropdown').forEach(d => d.classList.remove('active'));
+    }
+  });
+
+  // Categorias mobile — acordeão
+  const mobileCatBtn = document.getElementById("mobile-cat-btn");
+  const mobileCatList = document.getElementById("mobile-cat-list");
+
+  mobileCatBtn?.addEventListener("click", () => {
+    mobileCatBtn.classList.toggle("aberto");
+    mobileCatList?.classList.toggle("aberto");
+  });
+
+  // Pesquisa Live
+  function normalizar(str) {
+    return (str || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function setupSearch(inputId, resultsId) {
+    const input = document.getElementById(inputId);
+    const results = document.getElementById(resultsId);
+    if (!input || !results) return;
+
+    input.addEventListener("input", () => {
+      const q = normalizar(input.value.trim());
+      if (q.length < 2) {
+        results.classList.remove("active");
+        results.innerHTML = "";
+        return;
+      }
+
+      const filtered = searchItems
+        .filter(item => normalizar(item.label).includes(q))
+        .slice(0, 8); // Limite de 8 resultados
+
+      if (filtered.length > 0) {
+        results.innerHTML = filtered
+          .map(item => `
+            <a href="${item.href}" class="search-result-item">
+              <span class="search-result-type">${item.type}</span>
+              <span class="search-result-label">${item.label}</span>
+            </a>
+          `)
+          .join("");
+        results.classList.add("active");
+      } else {
+        results.innerHTML = `<div class="search-no-results">Nenhum resultado encontrado para "${input.value}"</div>`;
+        results.classList.add("active");
+      }
+    });
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        const q = input.value.trim();
+        if (q) {
+          window.location.href = `/pesquisa?q=${encodeURIComponent(q)}`;
+        }
+      }
+    });
+
+    // Impedir que cliques no dropdown fechem o próprio dropdown (devido ao listener global)
+    results.addEventListener("click", (e) => e.stopPropagation());
+  }
+
+  setupSearch("pesquisa-input", "results-desktop");
+  setupSearch("pesquisa-input-mobile", "results-mobile");
+
+  // Lógica de Toggle de Tema
+  const themeToggle = document.getElementById('theme-toggle');
+  
+  themeToggle?.addEventListener('click', () => {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+  });
+</script>

@@ -1,0 +1,245 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Navbar from "../components/Navbar.astro";
+
+// Se o utilizador já estiver logado (tem o cookie user_name), redireciona para a home
+const user = Astro.cookies.get('user_name')?.value;
+if (user) {
+  return Astro.redirect('/');
+}
+---
+
+<Layout titulo="Login - Notícias Básicas">
+  <Navbar isHome={false} />
+
+  <main class="auth-container">
+    <div class="auth-card reveal">
+      <div class="auth-header">
+        <h1>Bem-vindo de volta</h1>
+        <p>Inicie sessão para aceder às suas preferências personalizadas.</p>
+      </div>
+
+      <form id="login-form">
+        <div class="input-group">
+          <input type="text" id="identifier" name="identifier" required placeholder=" " />
+          <label for="identifier">Email ou Nome de Utilizador</label>
+        </div>
+
+        <div class="input-group">
+          <input type="password" id="password" name="password" required placeholder=" " />
+          <label for="password">Palavra-passe</label>
+        </div>
+
+        <button type="submit" class="auth-btn">
+          <span>Entrar</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
+        </button>
+
+        <div id="auth-status" class="auth-status"></div>
+      </form>
+
+      <div class="auth-footer">
+        <p>Ainda não tem conta? <a href="/registo">Crie uma agora</a></p>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  const form = document.getElementById('login-form') as HTMLFormElement;
+  const status = document.getElementById('auth-status');
+
+  if (form && status) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector('.auth-btn') as HTMLButtonElement;
+      const btnSpan = btn.querySelector('span');
+      
+      const formData = new FormData(form);
+      const identifier = formData.get('identifier');
+      const password = formData.get('password');
+
+      if (btnSpan) {
+        const originalText = btnSpan.innerText;
+        btnSpan.innerText = 'A processar...';
+        btn.disabled = true;
+        status.innerText = '';
+        status.className = 'auth-status';
+
+        try {
+          const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier, password }),
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            status.innerText = 'Login efetuado! A redirecionar...';
+            status.className = 'auth-status success show';
+            setTimeout(() => window.location.href = '/', 1000);
+          } else {
+            status.innerText = result.error || 'Erro ao entrar.';
+            status.className = 'auth-status error show';
+            btnSpan.innerText = originalText;
+            btn.disabled = false;
+          }
+        } catch (error) {
+          status.innerText = 'Erro de conexão.';
+          status.className = 'auth-status error show';
+          btnSpan.innerText = originalText;
+          btn.disabled = false;
+        }
+      }
+    });
+  }
+
+  // Animação de revelação
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) entry.target.classList.add('active');
+    });
+  });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+<style>
+  .auth-container {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    background-color: var(--cor-fundo);
+  }
+
+  .auth-card {
+    width: 100%;
+    max-width: 450px;
+    background: var(--cor-fundo-card);
+    padding: 48px;
+    border-radius: var(--raio);
+    border: 1px solid var(--cor-borda);
+    box-shadow: var(--sombra);
+  }
+
+  .auth-header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .auth-header h1 {
+    font-family: var(--fonte-titulo);
+    font-size: 2.2rem;
+    margin-bottom: 12px;
+    color: var(--cor-principal);
+  }
+
+  .auth-header p {
+    color: var(--cor-texto-suave);
+    font-size: 0.95rem;
+  }
+
+  /* Grupos de Input */
+  .input-group {
+    position: relative;
+    margin-bottom: 32px;
+    display: flex;
+    flex-direction: column-reverse; /* Inverte a ordem para o label ficar em cima no HTML mas visualmente em cima */
+  }
+
+  .input-group input {
+    width: 100%;
+    padding: 12px 0;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--cor-borda);
+    color: var(--cor-texto);
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.3s ease;
+  }
+
+  .input-group label {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--cor-texto-suave);
+    margin-bottom: 8px;
+    transition: all 0.3s ease;
+    pointer-events: none;
+  }
+
+  /* Removemos a animação flutuante antiga para deixar fixo em cima */
+  .input-group input:focus ~ label,
+  .input-group input:not(:placeholder-shown) ~ label {
+    color: var(--cor-destaque);
+  }
+
+  .input-group input:focus {
+    border-bottom-color: var(--cor-destaque);
+  }
+
+  /* Botão */
+  .auth-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--cor-destaque);
+    color: var(--cor-fundo); /* Contraste automático */
+    border: none;
+    border-radius: var(--raio);
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .auth-btn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  }
+
+  .auth-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  /* Status e Rodapé */
+  .auth-status {
+    margin-top: 20px;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 0.9rem;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s ease;
+  }
+
+  .auth-status.show { opacity: 1; transform: translateY(0); }
+  .auth-status.success { background: rgba(76, 175, 80, 0.1); color: #4caf50; }
+  .auth-status.error { background: rgba(244, 67, 54, 0.1); color: #f44336; }
+
+  .auth-footer {
+    margin-top: 32px;
+    text-align: center;
+    font-size: 0.95rem;
+  }
+
+  .auth-footer a {
+    color: var(--cor-destaque);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .auth-footer a:hover { text-decoration: underline; }
+
+  /* Animações */
+  .reveal { opacity: 0; transform: translateY(20px); transition: all 0.6s ease; }
+  .reveal.active { opacity: 1; transform: translateY(0); }
+</style>

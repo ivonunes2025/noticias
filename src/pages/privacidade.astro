@@ -1,0 +1,103 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Navbar from "../components/Navbar.astro";
+
+const titulo = "Política de Privacidade | Notícias Básicas";
+---
+
+<Layout titulo={titulo}>
+  <Navbar />
+  
+  <main class="legal-page">
+    <div class="legal-container">
+      <h1>Política de Privacidade</h1>
+      <p class="last-updated">Última atualização: 12 de março de 2026</p>
+
+      <section class="legal-section">
+        <h2>1. Introdução</h2>
+        <p>A privacidade dos nossos utilizadores é fundamental para o Notícias Básicas. Esta política explica como recolhemos, utilizamos e protegemos as suas informações pessoais ao utilizar o nosso site.</p>
+      </section>
+
+      <section class="legal-section">
+        <h2>2. Informação Recolhida</h2>
+        <p>Recolhemos informação de forma direta através de formulários de contacto e de forma indireta através de cookies. A informação recolhida pode incluir o seu nome, e-mail, endereço IP e dados de navegação.</p>
+      </section>
+
+      <section class="legal-section">
+        <h2>3. Utilização da Informação</h2>
+        <p>Utilizamos a informação recolhida para melhorar o funcionamento do site, personalizar a sua experiência, enviar comunicações solicitadas e analisar o tráfego de utilizadores.</p>
+      </section>
+
+      <section class="legal-section">
+        <h2>4. Partilha de Dados</h2>
+        <p>Não vendemos nem partilhamos os seus dados pessoais com terceiros, exceto quando exigido por lei ou para garantir o funcionamento técnico do site (como serviços de alojamento).</p>
+      </section>
+
+      <section class="legal-section">
+        <h2>5. Direitos do Utilizador</h2>
+        <p>Nos termos do RGPD, o utilizador tem o direito de aceder, retificar, apagar e limitar o tratamento dos seus dados pessoais. Para exercer estes direitos, entre em contacto connosco através da página de Contacto.</p>
+      </section>
+
+      <section class="legal-section">
+        <h2>6. Cookies</h2>
+        <p>Utilizamos cookies para otimizar a sua experiência. Pode desativar os cookies nas definições do seu navegador, embora isso possa afetar algumas funcionalidades do site.</p>
+      </section>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .legal-page {
+    padding: 120px 24px 80px;
+    background: var(--cor-fundo);
+    min-height: 80vh;
+  }
+
+  .legal-container {
+    max-width: 800px;
+    margin: 0 auto;
+    color: var(--cor-texto);
+  }
+
+  h1 {
+    font-family: var(--fonte-titulo);
+    font-size: 3rem;
+    margin-bottom: 12px;
+    color: var(--cor-principal);
+  }
+
+  .last-updated {
+    color: var(--cor-texto-suave);
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+    font-style: italic;
+  }
+
+  .legal-section {
+    margin-bottom: 8px;
+  }
+
+  h2 {
+    font-family: var(--fonte-corpo);
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 2px;
+    color: var(--cor-destaque);
+  }
+
+  p {
+    line-height: 1.6;
+    color: var(--cor-texto-suave);
+    text-align: justify;
+  }
+
+  @media (max-width: 768px) {
+    .legal-page {
+      padding-top: 80px;
+    }
+    
+    h1 {
+      font-size: 2.25rem;
+    }
+  }
+</style>

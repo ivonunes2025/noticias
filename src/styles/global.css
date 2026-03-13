@@ -1,0 +1,229 @@
+/* ═══════════════════════════════════════════════════════════════
+   ESTILOS GLOBAIS - Comuns a todas as páginas
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Design tokens: cores, tipografia e medidas reusáveis em todo o site. */
+:root {
+  /* TEMA PADRÃO: DOURADO (Luxo/Elegante) */
+  --cor-fundo: #0a0a0a;
+  --cor-fundo-card: #141414;
+  --cor-principal: #ffffff;
+  --cor-destaque: #c8963e; /* Dourado */
+  --cor-destaque-claro: rgba(200, 150, 62, 0.15);
+  --cor-texto: #e0e0e0;
+  --cor-texto-suave: #a0a0a0;
+  --cor-borda: rgba(255, 255, 255, 0.08);
+  --cor-navbar: rgba(10, 10, 10, 0.95);
+  
+  --sombra: 0 4px 24px rgba(0, 0, 0, 0.5);
+  --raio: 12px;
+  --fonte-titulo: "Playfair Display", serif;
+  --fonte-corpo: "DM Sans", sans-serif;
+  --max-width: 1100px;
+}
+
+/* TEMA ESCURO: PRETO E BRANCO (Minimalista) */
+[data-theme="dark"] {
+  --cor-fundo: #000000;
+  --cor-fundo-card: #111111;
+  --cor-principal: #ffffff;
+  --cor-destaque: #ffffff; /* Branco total */
+  --cor-destaque-claro: rgba(255, 255, 255, 0.1);
+  --cor-texto: #f0f0f0;
+  --cor-texto-suave: #888888;
+  --cor-borda: rgba(255, 255, 255, 0.12);
+  --cor-navbar: rgba(0, 0, 0, 0.98);
+}
+
+/* Reset simples para reduzir diferenças entre browsers. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Base visual do site (tipografia, fundo, legibilidade). */
+body {
+  background-color: var(--cor-fundo);
+  color: var(--cor-texto);
+  font-family: var(--fonte-corpo);
+  font-weight: 300;
+  line-height: 1.7;
+  font-size: 17px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── LAYOUT DE SECÇÕES ──
+   Mantém espaçamento consistente entre blocos (home e páginas internas). */
+section {
+  padding: 90px 24px;
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+/* ── TIPOGRAFIA DE TÍTULOS ── */
+h2 {
+  font-family: var(--fonte-titulo);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 700;
+  color: var(--cor-principal);
+  margin-bottom: 24px; /* Aumentado para acomodar a linha sem saltos */
+  line-height: 1.2;
+  position: relative;
+  display: block; /* Mudado de inline-block para block para estabilidade */
+  min-height: 1.2em; /* Reserva espaço para o texto */
+}
+
+/* Sub-linha decorativa do h2 (marca visual do site). */
+h2::after {
+  content: "";
+  display: block;
+  width: 52px;
+  height: 3px;
+  background: var(--cor-destaque);
+  position: absolute;
+  bottom: -16px; /* Posicionamento absoluto para não empurrar o layout se o texto mudar */
+  left: 0;
+  border-radius: 2px;
+}
+
+h3 {
+  font-family: var(--fonte-titulo);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--cor-principal);
+  margin-bottom: 10px;
+}
+
+p {
+  color: var(--cor-texto-suave);
+  margin-bottom: 16px;
+  max-width: 640px;
+}
+
+img {
+  border-radius: var(--raio);
+  max-width: 100%;
+  display: block;
+  box-shadow: var(--sombra);
+}
+
+/* ── GRID DE NOTÍCIAS ──
+   Estrutura de grelha usada em várias páginas. Estilos do cartão estão no CardNoticia.astro. */
+.noticias-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 32px;
+}
+
+/* ── CARROSSEL (Unificado) ──
+   Usado na Home e Categorias. */
+.carrossel {
+  position: relative;
+  overflow: hidden;
+  padding: 0 64px;
+  margin-top: 32px;
+}
+
+.carrossel-track {
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+}
+
+.carrossel-track::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, and Opera */
+}
+
+.carrossel-track.active {
+  cursor: grabbing;
+  cursor: -webkit-grabbing;
+  user-select: none;
+}
+
+.carrossel-slide {
+  flex: 0 0 80%;
+  min-width: 0;
+}
+
+@media (min-width: 600px) {
+  .carrossel-slide { flex: 0 0 55%; }
+}
+
+@media (min-width: 900px) {
+  .carrossel-slide { flex: 0 0 35%; }
+}
+
+.carrossel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.carrossel-arrow:hover {
+  background: var(--cor-destaque-claro);
+  border-color: var(--cor-destaque);
+  color: var(--cor-principal);
+}
+
+.carrossel-prev { left: 8px; }
+.carrossel-next { right: 8px; }
+
+@media (max-width: 768px) {
+  .carrossel { padding: 0 40px; }
+  .carrossel-arrow { width: 38px; height: 38px; font-size: 22px; }
+}
+
+/* ── ANIMAÇÕES ──
+   Usadas para entrada suave das secções ao carregar a página. */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── RESPONSIVO BASE ── */
+@media (max-width: 768px) {
+  body {
+    font-size: 16px;
+  }
+
+  section {
+    padding: 60px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  section {
+    padding: 32px 16px;
+  }
+}

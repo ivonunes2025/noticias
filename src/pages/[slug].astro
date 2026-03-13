@@ -1,0 +1,288 @@
+---
+// Rota dinâmica para páginas institucionais (Quem Somos, Termos, etc.)
+// Baseado no slug vindo do Strapi.
+export const prerender = false;
+
+import Layout from "../layouts/Layout.astro";
+import Navbar from "../components/Navbar.astro";
+import { getRichText, getImageUrl, renderBlocks } from "../utils/strapi";
+
+const STRAPI_BASE = import.meta.env.STRAPI_URL;
+const STRAPI = STRAPI_BASE?.replace(/\/$/, '');
+const { slug } = Astro.params;
+
+// Busca os dados da página por slug
+const res = await fetch(`${STRAPI}/api/paginas?filters[slug][$eq]=${slug}&populate=*`).then(r => r.json());
+const rawData = res.data?.[0];
+const pagina = rawData?.attributes ?? rawData;
+
+// DEBUG: Verificar estrutura da página
+console.log('--- DEBUG PÁGINA COMPLETA ---');
+console.log('Campos encontrados:', Object.keys(pagina || {}));
+console.log('Conteúdo:', JSON.stringify(pagina?.conteudo)?.slice(0, 100));
+console.log('Capa:', JSON.stringify(pagina?.capa));
+// ------------------------------------
+
+// Se não houver página, Astro.redirect ou 404
+if (!pagina) {
+  return Astro.redirect('/404');
+}
+
+// Verifica se há blocos ou texto simples para o conteúdo
+const contentHtml = renderBlocks(pagina.conteudo) || getRichText(pagina.conteudo);
+
+// Se não houver 'capa', tenta procurar outros campos comuns de imagem
+const imagemCapa = pagina.capa || pagina.imagem || pagina.image || pagina.Hero;
+const urlCapa = getImageUrl(imagemCapa);
+---
+
+<Layout titulo={pagina.titulo}>
+  <Navbar isHome={false} />
+
+  <main class="legal-page">
+    <div class="legal-container">
+      <a href="/" class="voltar">← Voltar</a>
+      
+      {/* Imagem de capa - Tenta várias fontes */}
+      {urlCapa && (
+        <img 
+          src={urlCapa} 
+          alt={pagina.titulo} 
+          class="page-hero" 
+        />
+      )}
+
+      <h1>{pagina.titulo}</h1>
+      
+      <div class="content-body" set:html={contentHtml}>
+      </div>
+
+      {/* Secção de Contacto (Visível em todas as páginas institucionais) */}
+      <div class="page-footer-cta">
+        <div class="cta-divider"></div>
+        <div class="cta-content">
+          <h2>Ficou com alguma dúvida?</h2>
+          <p>Estamos disponíveis para esclarecer qualquer questão sobre o nosso projeto ou políticas.</p>
+          <a href="/contacto" class="contact-btn">
+            Contacte-nos
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          </a>
+        </div>
+      </div>
+
+      {/* Secção de Estatísticas (Apenas para Quem Somos) */}
+      {slug === 'quem-somos' && (
+        <div class="quem-somos-extras">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <div class="stat-info">
+                <span class="stat-value">24/7</span>
+                <span class="stat-label">Notícias em Tempo Real</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              </div>
+              <div class="stat-info">
+                <span class="stat-value">+10k</span>
+                <span class="stat-label">Visitantes Mensais</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .legal-page {
+    padding: 120px 24px 80px;
+    background: var(--cor-fundo);
+    min-height: 80vh;
+  }
+
+  .legal-container {
+    max-width: 800px;
+    margin: 0 auto;
+    color: var(--cor-texto);
+  }
+
+  .voltar {
+    display: inline-block;
+    margin-bottom: 32px;
+    color: var(--cor-texto-suave);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s ease;
+  }
+
+  .voltar:hover {
+    color: var(--cor-destaque);
+  }
+
+  .page-hero {
+    width: 100%;
+    aspect-ratio: 21 / 9;
+    object-fit: cover;
+    border-radius: var(--raio);
+    margin-bottom: 40px;
+    box-shadow: var(--sombra);
+  }
+
+  h1 {
+    font-family: var(--fonte-titulo);
+    font-size: 3rem;
+    margin-bottom: 12px;
+    color: var(--cor-principal);
+  }
+
+  .content-body {
+    line-height: 1.8;
+    font-size: 1.1rem;
+    color: var(--cor-texto-suave);
+    text-align: justify;
+  }
+
+  .content-body :global(p) {
+    margin-bottom: 24px;
+  }
+
+  .content-body :global(h2) {
+    font-family: var(--fonte-corpo);
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 2px;
+    color: var(--cor-destaque);
+    margin-top: 32px;
+  }
+
+  /* ── Estilos Especiais Quem Somos (Stats & CTA) ── */
+  .quem-somos-extras {
+    margin-top: 60px;
+    padding-top: 40px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 24px;
+    margin-bottom: 60px;
+  }
+
+  .stat-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--raio);
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    transition: all 0.3s ease;
+  }
+
+  .stat-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateY(-4px);
+    border-color: var(--cor-destaque-claro);
+  }
+
+  .stat-icon {
+    width: 60px;
+    height: 60px;
+    background: var(--cor-destaque-claro);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cor-destaque);
+    flex-shrink: 0;
+  }
+
+  .stat-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stat-value {
+    font-family: var(--fonte-titulo);
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--cor-principal);
+    line-height: 1.2;
+  }
+
+  .stat-label {
+    font-size: 0.85rem;
+    color: var(--cor-texto-suave);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .cta-section {
+    background: linear-gradient(135deg, rgba(200, 150, 62, 0.1) 0%, rgba(10, 10, 10, 0) 100%);
+    border: 1px solid var(--cor-destaque-claro);
+    border-radius: 24px;
+    padding: 40px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .cta-section p {
+    font-size: 1.2rem;
+    color: var(--cor-texto);
+    max-width: 400px;
+    margin: 0;
+  }
+
+  .cta-button {
+    background: var(--cor-destaque);
+    color: var(--cor-fundo);
+    padding: 16px 32px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s ease;
+  }
+
+  .cta-button:hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px var(--cor-destaque-claro);
+  }
+
+  /* Imagens dentro do texto rico */
+  .content-body :global(.rich-image-container) {
+    margin: 40px 0;
+    width: 100%;
+    text-align: center;
+  }
+
+  .content-body :global(.rich-image) {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--raio);
+    box-shadow: var(--sombra);
+  }
+
+  @media (max-width: 768px) {
+    .legal-page {
+      padding-top: 80px;
+    }
+    
+    h1 {
+      font-size: 2.25rem;
+    }
+  }
+</style>

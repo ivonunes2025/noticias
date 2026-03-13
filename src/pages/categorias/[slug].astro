@@ -1,0 +1,132 @@
+---
+export const prerender = false;
+import Layout from "../../layouts/Layout.astro";
+import Navbar from "../../components/Navbar.astro";
+import CardNoticia from "../../components/CardNoticia.astro";
+import { getRichText, getImageUrl, formatDate, formatTituloPt } from "../../utils/strapi";
+
+const STRAPI = import.meta.env.STRAPI_URL;
+const { slug } = Astro.params;
+const slugEncoded = encodeURIComponent(slug ?? "");
+
+const [categoriaRes, noticiasRes] = await Promise.all([
+  fetch(
+    `${STRAPI}/api/categorias?filters[slug][$eq]=${slugEncoded}`
+  ).then((r) => r.json()),
+  fetch(
+    `${STRAPI}/api/noticias?filters[categorias][slug][$eq]=${slugEncoded}&populate[categorias][fields][0]=slug&populate[categorias][fields][1]=nome&populate[capa][fields][0]=url&pagination[pageSize]=100`
+  ).then((r) => r.json()),
+]);
+
+const categoriaData = categoriaRes.data?.[0];
+const attrsCategoria = categoriaData?.attributes ?? categoriaData;
+const nomeCategoriaRaw = attrsCategoria?.nome ?? attrsCategoria?.name ?? slug ?? "";
+
+const newsRaw: any[] = noticiasRes.data ?? [];
+const nomeCategoria = formatTituloPt(nomeCategoriaRaw);
+
+// Estado de autenticação (Cookies) para filtrar notícias privadas
+const userCookie = Astro.cookies.get('user_name');
+const isAuthenticated = !!userCookie?.value;
+
+const news = newsRaw.filter((n: any) => {
+  const attrs = n.attributes ?? n;
+  const isPrivate = attrs.privadas === true;
+  if (isPrivate && !isAuthenticated) return false;
+  return true;
+});
+---
+
+<Layout titulo={`${nomeCategoria} - Categorias`}>
+  <Navbar isHome={false} />
+
+  <section class="categoria-detalhe">
+    <a href="/" class="voltar">← Voltar</a>
+    <h1>{nomeCategoria}</h1>
+    <p class="categoria-desc">
+      Notícias na categoria {nomeCategoria}.
+    </p>
+
+    {
+      news.length > 0 ? (
+        <div class="carrossel">
+          <button
+            type="button"
+            class="carrossel-arrow carrossel-prev"
+            aria-label="Notícia anterior"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            class="carrossel-arrow carrossel-next"
+            aria-label="Próxima notícia"
+          >
+            ›
+          </button>
+
+          <div class="carrossel-track">
+            {news.map((n: any) => (
+              <div class="carrossel-slide">
+                <CardNoticia noticia={n} />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p class="sem-noticias">
+          Não há notícias nesta categoria. Associe notícias a esta categoria no
+          Strapi.
+        </p>
+      )
+    }
+  </section>
+<style>
+  .categoria-detalhe {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 60px 24px;
+  }
+
+  .voltar {
+    display: inline-block;
+    color: var(--cor-principal);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 32px;
+    transition: opacity 0.2s ease;
+  }
+
+  .voltar:hover {
+    opacity: 0.7;
+  }
+
+  .categoria-detalhe h1 {
+    font-family: var(--fonte-titulo);
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    color: var(--cor-principal);
+    margin-bottom: 8px;
+  }
+
+  .categoria-detalhe h1::after {
+    content: "";
+    display: block;
+    width: 52px;
+    height: 3px;
+    background: var(--cor-destaque);
+    margin-top: 14px;
+    border-radius: 2px;
+  }
+
+  .categoria-desc {
+    color: var(--cor-texto-suave);
+    margin-bottom: 40px;
+  }
+
+  .sem-noticias {
+    color: var(--cor-texto-suave);
+    font-style: italic;
+  }
+</style>
+</Layout>

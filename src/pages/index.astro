@@ -1,0 +1,489 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Navbar from "../components/Navbar.astro";
+import CardNoticia from "../components/CardNoticia.astro";
+import { getRichText, getImageUrl, formatDate } from "../utils/strapi";
+
+const STRAPI = import.meta.env.STRAPI_URL;
+
+// Busca notícias e categorias em paralelo
+const [noticiasRes, categoriasRes] = await Promise.all([
+  fetch(`${STRAPI}/api/noticias?populate[capa][fields][0]=url&populate[categorias][fields][0]=slug&populate[categorias][fields][1]=nome&pagination[pageSize]=100&sort=publishedAt:desc`).then((r) => r.json()),
+  fetch(`${STRAPI}/api/categorias?pagination[pageSize]=20&sort=nome:asc`).then((r) => r.json()),
+]);
+
+const news: any[] = noticiasRes.data ?? [];
+const categorias: any[] = categoriasRes.data ?? [];
+
+// Estado de autenticação (Cookies) para filtrar notícias privadas
+const userCookie = Astro.cookies.get('user_name');
+const isAuthenticated = !!userCookie?.value;
+
+// Filtra notícias válidas (com slug) e respeita a privacidade
+const newsValid = news.filter((n: any) => {
+  const attrs = n.attributes ?? n;
+  const isPrivate = attrs.privadas === true;
+  
+  // Se for privada, só mostra se estiver autenticado
+  if (isPrivate && !isAuthenticated) return false;
+  
+  return Boolean(attrs.slug);
+});
+
+// 🌟 Secção "Em Destaque": apenas as que têm o campo 'destaque' como verdadeiro (ou as 3 últimas se o campo ainda não existir)
+const featuredNews = newsValid.filter((n: any) => {
+  const attrs = n.attributes ?? n;
+  return attrs.destaque === true;
+}).slice(0, 6);
+
+// Se não houver nenhuma marcada como destaque, mostramos as 3 mais recentes por defeito
+const displayFeatured = featuredNews.length > 0 ? featuredNews : newsValid.slice(0, 3);
+
+// Últimas 6 notícias para o ticker
+const tickerNews = newsValid.slice(0, 6);
+
+// Notícias por categoria (máx 6 por categoria)
+const noticiasPorCategoria = categorias.map((cat: any) => {
+  const catAttrs = cat.attributes ?? cat;
+  const catSlug = catAttrs.slug ?? "";
+  const catNome = catAttrs.nome ?? catAttrs.name ?? catSlug;
+
+  const noticias = newsValid.filter((n: any) => {
+    const attrs = n.attributes ?? n;
+    const cats = attrs.categorias;
+    if (!cats) return false;
+    const items: any[] = Array.isArray(cats)
+      ? cats
+      : Array.isArray(cats?.data)
+      ? cats.data
+      : cats?.data
+      ? [cats.data]
+      : [];
+    return items.some((c: any) => {
+      const s = c?.attributes?.slug ?? c?.slug ?? "";
+      return s === catSlug;
+    });
+  }).slice(0, 6);
+
+  return { slug: catSlug, nome: catNome, noticias };
+}).filter((c) => c.noticias.length > 0);
+
+// ── Lógica SSR para "Para Si" ──
+// Lemos as preferências dos cookies no servidor para evitar CLS (Layout Shift)
+const prefsCookie = Astro.cookies.get('preferencias-categorias');
+
+let favoriteNews: any[] = [];
+let hasPrefs = false;
+
+if (isAuthenticated && prefsCookie && prefsCookie.value) {
+  try {
+    const prefs = JSON.parse(prefsCookie.value);
+    if (Array.isArray(prefs) && prefs.length > 0) {
+      hasPrefs = true;
+      // Filtramos diretamente de newsValid para manter a estrutura do Strapi compatível com CardNoticia
+      favoriteNews = newsValid.filter(n => {
+        const attrs = n.attributes ?? n;
+        const cats = attrs.categorias;
+        const catSlugs = (Array.isArray(cats) ? cats : Array.isArray(cats?.data) ? cats.data : cats?.data ? [cats.data] : [])
+          .map((c: any) => c?.attributes?.slug ?? c?.slug ?? "");
+        return catSlugs.some((cat: string) => prefs.includes(cat));
+      }).slice(0, 10);
+    }
+  } catch (e) {
+    hasPrefs = false;
+  }
+}
+
+// Determinar a imagem LCP para pré-carregamento
+const lcpImageUrl = hasPrefs && favoriteNews.length > 0 
+  ? getImageUrl((favoriteNews[0].attributes ?? favoriteNews[0]).capa ?? (favoriteNews[0].attributes ?? favoriteNews[0]).imagem)
+  : (displayFeatured.length > 0 ? getImageUrl(displayFeatured[0].attributes?.capa ?? displayFeatured[0].attributes?.imagem) : null);
+---
+
+<Layout lcpImage={lcpImageUrl}>
+  <Navbar isHome={true} />
+
+  {/* ── Ticker Personalizado: Para Si (SSR) ── */}
+  {hasPrefs && favoriteNews.length > 0 && (
+    <div id="para-si-ticker" class="ticker-bar ticker-bar--personal">
+      <span class="ticker-label">Para Si</span>
+      <div class="ticker-track-wrapper">
+        <div class="ticker-track">
+          {[...favoriteNews, ...favoriteNews].map((n: any) => {
+            const attrs = n.attributes ?? n;
+            return (
+              <a href={`/noticias/${attrs.slug}`} class="ticker-item">
+                <span class="ticker-dot">●</span>
+                {attrs.titulo}
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* ── Secção Personalizada: Para Si (SSR) ── */}
+  {hasPrefs && favoriteNews.length > 0 && (
+    <section id="para-si" class="personal-section">
+      <div class="personal-header">
+        <h2>Para Si</h2>
+      </div>
+      <div class="carrossel">
+        <button type="button" class="carrossel-arrow carrossel-prev" aria-label="Anterior">‹</button>
+        <button type="button" class="carrossel-arrow carrossel-next" aria-label="Próximo">›</button>
+        <div class="carrossel-track">
+          {favoriteNews.map((n: any, index: number) => (
+            <div class="carrossel-slide">
+              <CardNoticia noticia={n} isLCP={index === 0} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  {/* ── Breaking News Ticker ── */}
+  {tickerNews.length > 0 && (
+    <div class="ticker-bar">
+      <span class="ticker-label">Últimas</span>
+      <div class="ticker-track-wrapper">
+        <div class="ticker-track">
+          {[...tickerNews, ...tickerNews].map((n: any) => {
+            const attrs = n.attributes ?? n;
+            return (
+              <a href={`/noticias/${attrs.slug}`} class="ticker-item">
+                <span class="ticker-dot">●</span>
+                {attrs.titulo}
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* ── Em Destaque ── */}
+  <section id="noticias">
+    <h2>Em Destaque</h2>
+    {displayFeatured.length > 0 && (
+      <div class="carrossel">
+        <button type="button" class="carrossel-arrow carrossel-prev" aria-label="Notícia anterior">‹</button>
+        <button type="button" class="carrossel-arrow carrossel-next" aria-label="Próxima notícia">›</button>
+        <div class="carrossel-track">
+          {displayFeatured.map((n: any, index: number) => (
+            <div class="carrossel-slide">
+              <CardNoticia noticia={n} isLCP={!hasPrefs && index === 0} />
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+  </section>
+
+  {/* ── Últimas Notícias ── */}
+  {newsValid.length > 0 && (
+    <section id="ultimas" class="ultimas-section">
+      <h2>Últimas Notícias</h2>
+      <div class="ultimas-grid">
+        {newsValid.slice(0, 6).map((n: any) => (
+          <CardNoticia noticia={n} horizontal={true} />
+        ))}
+      </div>
+    </section>
+  )}
+
+  {/* ── Por Categoria ── */}
+  {noticiasPorCategoria.map((cat) => (
+    <section class="categoria-section">
+      <div class="categoria-header">
+        <h2>{cat.nome}</h2>
+        <a href={`/categorias/${cat.slug}`} class="ver-mais">Ver todas →</a>
+      </div>
+      <div class="carrossel carrossel-cat" data-cat={cat.slug}>
+        <button type="button" class="carrossel-arrow carrossel-prev" aria-label="Anterior">‹</button>
+        <button type="button" class="carrossel-arrow carrossel-next" aria-label="Próximo">›</button>
+        <div class="carrossel-track">
+          {cat.noticias.map((n: any) => (
+            <div class="carrossel-slide">
+              <CardNoticia noticia={n} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  ))}
+
+</Layout>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    // ── Navbar active link por secção ──
+    const sections = document.querySelectorAll("section[id]");
+    const links = document.querySelectorAll("nav a");
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            links.forEach((link) => {
+              link.classList.remove("ativo");
+              if (link.getAttribute("href") === `#${entry.target.id}`) {
+                link.classList.add("ativo");
+              }
+            });
+          }
+        });
+      },
+      { threshold: 0.4 },
+    );
+
+    sections.forEach((s) => observer.observe(s));
+  });
+</script>
+
+<style>
+  /* ── Ticker ── */
+  :global(.ticker-bar) {
+    display: flex;
+    align-items: center;
+    background: transparent !important; /* Fundo removido */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    color: var(--cor-principal);
+    font-size: 0.85rem;
+    font-weight: 600;
+    overflow: hidden;
+    height: 42px;
+    border-bottom: none !important; /* Linha removida */
+  }
+
+  :global(.ticker-label) {
+    flex-shrink: 0;
+    padding: 0 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.75rem;
+    color: var(--cor-destaque);
+    border-right: none !important; /* Linha removida */
+    height: 100%;
+    display: flex;
+    align-items: center;
+    background: transparent !important; /* Fundo removido */
+  }
+
+  :global(.ticker-track-wrapper) {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  :global(.ticker-track) {
+    display: flex;
+    gap: 0;
+    animation: ticker-scroll 35s linear infinite;
+    white-space: nowrap;
+  }
+
+  :global(.ticker-track:hover) {
+    animation-play-state: paused;
+  }
+
+  :global(.ticker-item) {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 48px; /* Mais espaçado como solicitado */
+    text-decoration: none !important;
+    color: var(--cor-texto) !important;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    cursor: pointer; /* Agora é um link */
+  }
+
+  :global(.ticker-item:hover) {
+    color: var(--cor-destaque) !important;
+    background: transparent !important; /* Fundo removido no hover */
+  }
+
+  :global(.ticker-dot) {
+    font-size: 0.5rem;
+    color: var(--cor-destaque);
+    opacity: 0.5;
+  }
+
+  @keyframes ticker-scroll {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  /* ── Secções ── */
+  section {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 48px 24px 0;
+  }
+
+
+  /* ── Últimas notícias (grid compacta) ── */
+  .ultimas-section h2 {
+    margin-bottom: 0;
+  }
+
+  .ultimas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 20px;
+    margin-top: 28px;
+  }
+
+  @media (max-width: 480px) {
+    .ultimas-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* ── Por Categoria ── */
+  .categoria-section {
+    padding-top: 56px;
+  }
+
+  .categoria-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid rgba(255,255,255,0.07);
+    padding-bottom: 12px;
+    margin-bottom: 0;
+  }
+
+  .categoria-header h2 {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 24px; /* Mantém consistência para evitar shifts */
+  }
+
+  .categoria-header h2::after {
+    bottom: -16px;
+  }
+
+  .ver-mais {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--cor-destaque);
+    text-decoration: none;
+    letter-spacing: 0.04em;
+    transition: opacity 0.2s;
+  }
+
+  .ver-mais:hover {
+    opacity: 0.7;
+  }
+
+  /* ── Secção Personalizada: Para Si ── */
+  .personal-section {
+    background: transparent;
+    border-radius: 0;
+    padding: 48px 24px 0;
+    margin: 0 auto !important;
+    border: none;
+  }
+
+  /* Garantir que os cartões injetados via JS não tenham estilo de link padrão */
+  :global(.personal-section .noticia-card) {
+    text-decoration: none !important;
+    color: inherit !important;
+    display: flex;
+    flex-direction: column;
+    background: var(--cor-fundo-card);
+    border-radius: var(--raio);
+    border: 1px solid var(--cor-borda);
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    height: 100%;
+  }
+
+  :global(.personal-section .noticia-card:hover) {
+    transform: translateY(-6px);
+    box-shadow: var(--sombra);
+    border-color: var(--cor-destaque);
+  }
+
+  :global(.personal-section .noticia-titulo) {
+    color: var(--cor-principal) !important;
+    text-decoration: none !important;
+  }
+
+  :global(.personal-section .noticia-resumo) {
+    color: var(--cor-texto-suave) !important;
+  }
+
+  .personal-header {
+    margin-bottom: 24px;
+    border-bottom: 2px solid rgba(255,255,255,0.07);
+    padding-bottom: 12px;
+  }
+
+  .personal-header h2 {
+    color: var(--cor-principal);
+    font-family: var(--fonte-titulo);
+    font-size: clamp(2rem, 5vw, 3rem);
+    margin-bottom: 24px;
+    border: none;
+    padding: 0;
+    position: relative;
+    display: block;
+    min-height: 1.2em;
+  }
+
+  .personal-header h2::after {
+    content: "";
+    display: block;
+    width: 52px;
+    height: 3px;
+    background: var(--cor-destaque);
+    position: absolute;
+    bottom: -16px;
+    left: 0;
+    border-radius: 2px;
+  }
+
+  .personal-header p {
+    display: none; /* Esconder a descrição para ficar igual às outras secções */
+  }
+
+  /* ── Ticker Para Si ── */
+  :global(.ticker-bar--personal) {
+    background: transparent !important; /* Sem fundo amarelo */
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: none !important; /* Linha removida */
+    margin-bottom: 0;
+  }
+
+  :global(.ticker-bar--personal .ticker-label) {
+    background: transparent !important; /* Fundo removido */
+    color: var(--cor-destaque);
+    font-weight: 700;
+    border-right: none !important; /* Linha removida */
+  }
+
+  :global(.ticker-bar--personal .ticker-item) {
+    color: var(--cor-principal) !important; /* Texto normal */
+  }
+
+  :global(.ticker-bar--personal .ticker-item:hover) {
+    background: transparent !important; /* Sem fundo ao passar o rato */
+    color: var(--cor-destaque) !important; /* Letras amarelas no hover */
+  }
+
+  :global(.ticker-bar--personal .ticker-track) {
+    animation-duration: 45s; /* Um pouco mais lento para leitura personalizada */
+  }
+
+  /* Ajuste na secção para quando o ticker está acima */
+  :global(.ticker-bar--personal[style*="display: flex"]) + .personal-section {
+    margin-top: 0 !important;
+  }
+
+</style>
