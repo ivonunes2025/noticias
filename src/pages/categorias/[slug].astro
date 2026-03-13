@@ -29,12 +29,8 @@ const nomeCategoria = formatTituloPt(nomeCategoriaRaw);
 const userCookie = Astro.cookies.get('user_name');
 const isAuthenticated = !!userCookie?.value;
 
-const news = newsRaw.filter((n: any) => {
-  const attrs = n.attributes ?? n;
-  const isPrivate = attrs.privadas === true;
-  if (isPrivate && !isAuthenticated) return false;
-  return true;
-});
+
+const news = newsRaw;
 ---
 
 <Layout titulo={`${nomeCategoria} - Categorias`}>

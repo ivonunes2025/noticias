@@ -6,6 +6,7 @@ export const prerender = false;
 
 import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
+import CardNoticia from "../components/CardNoticia.astro";
 import { getRichText, formatDate, getImageUrl } from "../utils/strapi";
 
 const STRAPI = import.meta.env.STRAPI_URL;
@@ -33,17 +34,6 @@ if (q && STRAPI) {
 
     noticias = Array.isArray(noticiasRes?.data) ? noticiasRes.data : [];
     categorias = Array.isArray(categoriasRes?.data) ? categoriasRes.data : [];
-
-    // Estado de autenticação (Cookies) para filtrar notícias privadas
-    const userCookie = Astro.cookies.get('user_name');
-    const isAuthenticated = !!userCookie?.value;
-
-    if (!isAuthenticated) {
-      noticias = noticias.filter((n: any) => {
-        const attrs = n.attributes ?? n;
-        return attrs.privadas !== true;
-      });
-    }
   } catch (e) {
     console.error("Erro ao pesquisar no Strapi:", e);
   }
@@ -99,32 +89,9 @@ const temResultados = noticias.length > 0 || categorias.length > 0;
             <section class="bloco-resultados">
               <h2>Notícias</h2>
               <div class="noticias-grid">
-                {noticias.map((n: any) => {
-                  const attrs = n.attributes ?? n;
-                  if (!attrs.slug) return null;
-                  return (
-                    <a href={`/noticias/${attrs.slug}`} class="noticia">
-                      {getImageUrl(attrs.capa) && (
-                        <img
-                          src={getImageUrl(attrs.capa)}
-                          alt={attrs.titulo}
-                          class="noticia-img"
-                        />
-                      )}
-                      <div class="noticia-corpo">
-                        {attrs.publishedAt && (
-                          <span class="noticia-data">
-                            {formatDate(attrs.publishedAt)}
-                          </span>
-                        )}
-                        <h3>{attrs.titulo}</h3>
-                        <p class="noticia-resumo">
-                          {getRichText(attrs.conteudo)}
-                        </p>
-                      </div>
-                    </a>
-                  );
-                })}
+                {noticias.map((n: any) => (
+                  <CardNoticia noticia={n} />
+                ))}
               </div>
             </section>
           )}

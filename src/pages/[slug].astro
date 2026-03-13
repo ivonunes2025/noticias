@@ -43,18 +43,28 @@ const urlCapa = getImageUrl(imagemCapa);
     <div class="legal-container">
       <a href="/" class="voltar">← Voltar</a>
       
-      {/* Imagem de capa - Tenta várias fontes */}
-      {urlCapa && (
-        <img 
-          src={urlCapa} 
-          alt={pagina.titulo} 
-          class="page-hero" 
-        />
-      )}
-
       <h1>{pagina.titulo}</h1>
+
+      <div class="content-container">
+        <div class="content-body is-collapsed" id="content-body" set:html={contentHtml}>
+        </div>
+        <div class="content-overlay" id="content-overlay"></div>
+      </div>
       
-      <div class="content-body" set:html={contentHtml}>
+      <button id="toggle-content" class="read-more-btn">
+        <span>Ver mais</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+
+      {/* Imagem de capa - Movida para baixo do conteúdo */}
+      <div class="hero-container">
+        {urlCapa && (
+          <img 
+            src={urlCapa} 
+            alt={pagina.titulo} 
+            class="page-hero" 
+          />
+        )}
       </div>
 
       {/* Secção de Contacto (Visível em todas as páginas institucionais) */}
@@ -63,10 +73,10 @@ const urlCapa = getImageUrl(imagemCapa);
         <div class="cta-content">
           <h2>Ficou com alguma dúvida?</h2>
           <p>Estamos disponíveis para esclarecer qualquer questão sobre o nosso projeto ou políticas.</p>
-          <a href="/contacto" class="contact-btn">
+          <button onclick="window.location.href='/contacto'" class="contact-btn">
             Contacte-nos
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-          </a>
+          </button>
         </div>
       </div>
 
@@ -125,20 +135,103 @@ const urlCapa = getImageUrl(imagemCapa);
     color: var(--cor-destaque);
   }
 
+  .hero-container {
+    position: relative;
+    width: 100%;
+    margin: 60px 0 40px;
+    border-radius: var(--raio);
+    overflow: hidden;
+    aspect-ratio: 21 / 9;
+  }
+
   .page-hero {
     width: 100%;
-    aspect-ratio: 21 / 9;
+    height: 100%;
     object-fit: cover;
-    border-radius: var(--raio);
-    margin-bottom: 40px;
     box-shadow: var(--sombra);
   }
 
   h1 {
     font-family: var(--fonte-titulo);
     font-size: 3rem;
-    margin-bottom: 12px;
+    margin-bottom: 24px;
     color: var(--cor-principal);
+  }
+
+  /* ── Secção de Contacto (CTA) ── */
+  .page-footer-cta {
+    margin-top: 80px;
+    padding-top: 40px;
+  }
+
+  .cta-divider {
+    height: 1px;
+    background: linear-gradient(to right, var(--cor-destaque-claro) 0%, transparent 100%);
+    margin-bottom: 40px;
+    opacity: 0.3;
+  }
+
+  .cta-content {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 24px;
+    padding: 40px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .cta-content h2 {
+    font-family: var(--fonte-titulo);
+    font-size: 2rem;
+    color: var(--cor-principal);
+    margin: 0;
+  }
+
+  .cta-content p {
+    font-size: 1.1rem;
+    color: var(--cor-texto-suave);
+    max-width: 500px;
+    margin: 0;
+  }
+
+  .contact-btn {
+    background: var(--cor-destaque);
+    color: var(--cor-fundo);
+    padding: 16px 32px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 1rem;
+  }
+
+  .contact-btn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px var(--cor-destaque-claro);
+  }
+
+  .contact-btn svg {
+    transition: transform 0.2s ease;
+  }
+
+  .contact-btn:hover svg {
+    transform: translateX(4px);
+  }
+
+  /* ── Estilos do "Ver mais" ── */
+  .content-container {
+    position: relative;
+    overflow: hidden;
   }
 
   .content-body {
@@ -146,6 +239,56 @@ const urlCapa = getImageUrl(imagemCapa);
     font-size: 1.1rem;
     color: var(--cor-texto-suave);
     text-align: justify;
+    transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Altura aproximada para 6 linhas (1.1rem * 1.8 * 6 ≈ 12rem ou 192px) */
+  .content-body.is-collapsed {
+    max-height: 200px; /* Ajuste para ~6 linhas dependendo da fonte */
+  }
+
+  .content-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, var(--cor-fundo) 100%);
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .is-expanded + .content-overlay {
+    opacity: 0;
+  }
+
+  .read-more-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: 1px solid var(--cor-destaque-claro);
+    color: var(--cor-destaque);
+    padding: 10px 20px;
+    border-radius: 50px;
+    font-weight: 500;
+    cursor: pointer;
+    margin: 24px auto 0;
+    transition: all 0.3s ease;
+    font-family: inherit;
+  }
+
+  .read-more-btn:hover {
+    background: var(--cor-destaque-claro);
+    border-color: var(--cor-destaque);
+  }
+
+  .read-more-btn svg {
+    transition: transform 0.3s ease;
+  }
+
+  .read-more-btn.is-active svg {
+    transform: rotate(180deg);
   }
 
   .content-body :global(p) {
@@ -224,44 +367,6 @@ const urlCapa = getImageUrl(imagemCapa);
     letter-spacing: 0.05em;
   }
 
-  .cta-section {
-    background: linear-gradient(135deg, rgba(200, 150, 62, 0.1) 0%, rgba(10, 10, 10, 0) 100%);
-    border: 1px solid var(--cor-destaque-claro);
-    border-radius: 24px;
-    padding: 40px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 24px;
-  }
-
-  .cta-section p {
-    font-size: 1.2rem;
-    color: var(--cor-texto);
-    max-width: 400px;
-    margin: 0;
-  }
-
-  .cta-button {
-    background: var(--cor-destaque);
-    color: var(--cor-fundo);
-    padding: 16px 32px;
-    border-radius: 12px;
-    text-decoration: none;
-    font-weight: 700;
-    display: inline-flex;
-    align-items: center;
-    gap: 12px;
-    transition: all 0.3s ease;
-  }
-
-  .cta-button:hover {
-    filter: brightness(1.1);
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px var(--cor-destaque-claro);
-  }
-
   /* Imagens dentro do texto rico */
   .content-body :global(.rich-image-container) {
     margin: 40px 0;
@@ -286,3 +391,56 @@ const urlCapa = getImageUrl(imagemCapa);
     }
   }
 </style>
+
+<script>
+  function setupReadMore() {
+    const toggleBtn = document.getElementById('toggle-content');
+    const contentBody = document.getElementById('content-body') as HTMLElement;
+    const contentOverlay = document.getElementById('content-overlay') as HTMLElement;
+
+    if (!toggleBtn || !contentBody) return;
+
+    // Se o conteúdo for menor que o limite, esconde o botão
+    if (contentBody.scrollHeight <= 200) {
+      toggleBtn.style.display = 'none';
+      if (contentOverlay) contentOverlay.style.display = 'none';
+      contentBody.classList.remove('is-collapsed');
+      return;
+    }
+
+    toggleBtn.addEventListener('click', () => {
+      const isCollapsed = contentBody.classList.contains('is-collapsed');
+      
+      if (isCollapsed) {
+        // Expandir
+        contentBody.classList.remove('is-collapsed');
+        contentBody.style.maxHeight = contentBody.scrollHeight + 'px';
+        toggleBtn.classList.add('is-active');
+        const span = toggleBtn.querySelector('span');
+        if (span) span.innerText = 'Ver menos';
+        if (contentOverlay) contentOverlay.style.opacity = '0';
+      } else {
+        // Colapsar
+        contentBody.classList.add('is-collapsed');
+        contentBody.style.maxHeight = '200px';
+        toggleBtn.classList.remove('is-active');
+        const span = toggleBtn.querySelector('span');
+        if (span) span.innerText = 'Ver mais';
+        if (contentOverlay) contentOverlay.style.opacity = '1';
+        
+        // Opcional: Voltar para o início do conteúdo se estiver muito abaixo
+        const rect = contentBody.getBoundingClientRect();
+        if (rect.top < 0) {
+          window.scrollTo({
+            top: window.scrollY + rect.top - 150,
+            behavior: 'smooth'
+          });
+        }
+      }
+    });
+  }
+
+  // Executa no carregamento e após transições de página (se houver ViewTransitions)
+  setupReadMore();
+  document.addEventListener('astro:after-swap', setupReadMore);
+</script>

@@ -13,12 +13,22 @@ const slug = attrs.slug ?? noticia.id;
 const imagemUrl = getImageUrl(attrs.capa ?? attrs.imagem) || "/placeholder.jpg";
 const dataFormatada = formatDate(attrs.publishedAt);
 const resumo = getRichText(attrs.conteudo || attrs.resumo).slice(0, 140) + "...";
-const isPrivate = attrs.privadas === true;
+
+// Verifica se é privada (suporta vários nomes de campos possíveis no Strapi)
+const isPrivateField = attrs.privadas === true || attrs.Privadas === true || 
+                       attrs.privadas === "true" || attrs.Privadas === "true";
+
+// Verifica autenticação
+const userCookie = Astro.cookies.get('user_name');
+const isAuthenticated = !!userCookie?.value;
+
+// Só mostra como bloqueada se for privada E o utilizador não estiver logado
+const showBlocked = isPrivateField && !isAuthenticated;
 ---
 
-<a href={`/noticias/${slug}`} class={`noticia-card ${horizontal ? 'noticia-card--horizontal' : ''}`}>
+<a href={`/noticias/${slug}`} class={`noticia-card ${horizontal ? 'noticia-card--horizontal' : ''} ${showBlocked ? 'is-private' : ''}`}>
   <div class="noticia-img-wrapper">
-    {isPrivate && (
+    {showBlocked && (
       <div class="noticia-private-overlay">
         <div class="noticia-lock-icon">
           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -27,7 +37,7 @@ const isPrivate = attrs.privadas === true;
           </svg>
         </div>
         <div class="noticia-badge">
-          Privado
+          Exclusivo
         </div>
       </div>
     )}
@@ -35,7 +45,7 @@ const isPrivate = attrs.privadas === true;
       <Image 
         src={imagemUrl} 
         alt={attrs.titulo} 
-        class="noticia-img" 
+        class={`noticia-img ${showBlocked ? 'blur-img' : ''}`} 
         width={400} 
         height={225}
         format="webp"
@@ -47,7 +57,7 @@ const isPrivate = attrs.privadas === true;
       <img 
         src={imagemUrl} 
         alt={attrs.titulo} 
-        class="noticia-img" 
+        class={`noticia-img ${showBlocked ? 'blur-img' : ''}`} 
         loading={isLCP ? "eager" : "lazy"} 
         width="400" 
         height="225" 
@@ -121,17 +131,23 @@ const isPrivate = attrs.privadas === true;
   }
 
   .noticia-badge {
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(8px);
-    color: var(--cor-destaque);
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 0.6rem;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    color: #c8963e; /* Amarelo/Dourado fixo */
+    padding: 4px 12px;
+    border-radius: 50px; /* Mais arredondado para estilo moderno */
+    font-size: 0.65rem;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    border: 1px solid var(--cor-destaque-claro);
+    letter-spacing: 0.12em;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 1.5px solid #c8963e; /* Contorno amarelo/dourado */
+  }
+
+  .noticia-card:hover .noticia-badge {
+    background: rgba(200, 150, 62, 0.15);
+    border-color: #e5ac4e;
+    color: #e5ac4e;
   }
 
   .noticia-private-overlay {
@@ -141,45 +157,58 @@ const isPrivate = attrs.privadas === true;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(2px);
+    background: rgba(0, 0, 0, 0.3);
     z-index: 5;
     transition: all 0.3s ease;
   }
 
   .noticia-card:hover .noticia-private-overlay {
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  .blur-img {
+    filter: blur(12px) grayscale(0.5);
+    transform: scale(1.1); /* Compensa o desfoque nas bordas */
   }
 
   .noticia-lock-icon {
-    width: 50px;
-    height: 50px;
-    background: rgba(0, 0, 0, 0.6);
+    width: 56px;
+    height: 56px;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--cor-destaque);
-    margin-bottom: 8px;
-    border: 1.5px solid var(--cor-destaque-claro);
-    transition: transform 0.3s ease;
+    color: #c8963e; /* Amarelo/Dourado fixo para o ícone */
+    margin-bottom: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    border: 2px solid #c8963e; /* Contorno amarelo/dourado fixo */
   }
 
   .noticia-card:hover .noticia-lock-icon {
-    transform: scale(1.1);
+    transform: scale(1.15) rotate(-5deg);
+    background: rgba(200, 150, 62, 0.2);
+    border-color: #e5ac4e;
+    color: #e5ac4e;
   }
 
   .noticia-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.5s ease;
-    display: block; /* Remove o gap de linha de texto */
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), filter 0.6s ease;
+    display: block;
   }
 
-  .noticia-card:hover .noticia-img {
+  .noticia-card:not(.is-private):hover .noticia-img {
     transform: scale(1.05);
+  }
+
+  /* Se estiver bloqueada, o hover não deve aumentar o zoom da imagem já desfocada */
+  .is-private:hover .noticia-img {
+    transform: scale(1.1);
   }
 
   .noticia-corpo {

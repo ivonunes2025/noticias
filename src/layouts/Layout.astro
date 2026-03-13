@@ -7,7 +7,7 @@ import Footer from "../components/Footer.astro";
 import CookieConsent from "../components/CookieConsent.astro";
 
 // Título da página, com valor por omissão se não for passado via props
-const { titulo = "Noticícias Básicas", lcpImage } = Astro.props;
+const { titulo = "Notícias Básicas", lcpImage } = Astro.props;
 
 // Tenta obter o tema do cookie (mais fiável para SSR)
 const themeCookie = Astro.cookies.get('theme')?.value || 'dark';

@@ -19,14 +19,9 @@ const categorias: any[] = categoriasRes.data ?? [];
 const userCookie = Astro.cookies.get('user_name');
 const isAuthenticated = !!userCookie?.value;
 
-// Filtra notícias válidas (com slug) e respeita a privacidade
+// Filtra notícias válidas (com slug)
 const newsValid = news.filter((n: any) => {
   const attrs = n.attributes ?? n;
-  const isPrivate = attrs.privadas === true;
-  
-  // Se for privada, só mostra se estiver autenticado
-  if (isPrivate && !isAuthenticated) return false;
-  
   return Boolean(attrs.slug);
 });
 

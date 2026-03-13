@@ -4,9 +4,9 @@ export const SITE_CONFIG = {
   descricao: "A sua fonte diária de informação clara, rigorosa e independente.",
   ano: new Date().getFullYear(),
   redesSociais: {
-    facebook: "https://facebook.com",
-    instagram: "https://instagram.com",
-    x: "https://twitter.com",
+    facebook: "https://www.facebook.com/basicamente.pt",
+    instagram: "https://www.instagram.com/basicamente.digital/",
+    website: "https://basicamente.pt/",
   },
   linksLegais: {
     termos: "/termos-e-condicoes",

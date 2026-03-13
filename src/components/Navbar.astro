@@ -366,8 +366,8 @@ const user = Astro.cookies.get('user_name')?.value;
   .sun-icon { display: block; }
   .moon-icon { display: none; }
 
-  :global([data-theme="light"]) .sun-icon { display: none; }
-  :global([data-theme="light"]) .moon-icon { display: block; }
+  :global([data-theme="dark"]) .sun-icon { display: none; }
+  :global([data-theme="dark"]) .moon-icon { display: block; }
 
   /* Dropdown */
   .nav-dropdown {
@@ -853,14 +853,18 @@ const user = Astro.cookies.get('user_name')?.value;
   setupSearch("pesquisa-input", "results-desktop");
   setupSearch("pesquisa-input-mobile", "results-mobile");
 
-  // Lógica de Toggle de Tema
+  // Lógica de Toggle de Tema (Dourado vs P&B)
   const themeToggle = document.getElementById('theme-toggle');
   
   themeToggle?.addEventListener('click', () => {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'default';
+    const newTheme = currentTheme === 'dark' ? 'default' : 'dark';
     
-    document.documentElement.setAttribute('data-theme', newTheme);
+    if (newTheme === 'default') {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', newTheme);
+    }
     localStorage.setItem('theme', newTheme);
   });
 </script>

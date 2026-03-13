@@ -261,14 +261,15 @@ if (noticia) {
     width: 80px;
     height: 80px;
     background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(8px);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--cor-destaque);
+    color: #c8963e; /* Amarelo/Dourado fixo */
     margin-bottom: 24px;
-    border: 2px solid var(--cor-destaque-claro);
+    border: 2px solid #c8963e; /* Apenas o contorno */
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   }
 
   .lock-overlay h2 {
@@ -285,7 +286,7 @@ if (noticia) {
 
   .login-redirect-btn {
     background: var(--cor-destaque);
-    color: white !important;
+    color: var(--cor-fundo) !important;
     text-decoration: none !important;
     padding: 16px 32px;
     border-radius: var(--raio);
@@ -304,6 +305,11 @@ if (noticia) {
     transform: translateY(-3px) scale(1.02);
     filter: brightness(1.1);
     box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Inversão de cor para o ícone do botão se necessário */
+  .login-redirect-btn svg {
+    color: inherit;
   }
 
   .auth-cta-wrapper {
