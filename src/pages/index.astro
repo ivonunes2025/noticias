@@ -3,11 +3,11 @@ import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
 import CardNoticia from "../components/CardNoticia.astro";
 import SectionHeader from "../components/SectionHeader.astro";
-import { getImageUrl, checkAuth, fetchStrapi } from "../utils/strapi";
+import { getImageUrl, checkAuth, fetchStrapi, normalize } from "../utils/strapi";
 import { SITE_CONFIG } from "../utils/config";
 
 // Busca notícias e categorias em paralelo usando o novo utilitário dinâmico
-const [news, categorias] = await Promise.all([
+const [rawNews, rawCategorias] = await Promise.all([
   fetchStrapi('noticias', { 
     'populate[capa][fields][0]': 'url', 
     'populate[categorias][fields][0]': 'slug', 
@@ -21,21 +21,19 @@ const [news, categorias] = await Promise.all([
   }).then(d => d || []),
 ]);
 
+// Normaliza os dados para respeitar a Law of Demeter
+const news = normalize(rawNews);
+const categorias = normalize(rawCategorias);
+
 // Estado de autenticação (Cookies) para filtrar notícias privadas
 const cookies = Astro.cookies;
 const isAuthenticated = checkAuth(cookies);
 
 // Filtra notícias válidas (com slug)
-const newsValid = news.filter((n: any) => {
-  const attrs = n.attributes ?? n;
-  return Boolean(attrs.slug);
-});
+const newsValid = news.filter((n: any) => Boolean(n.slug));
 
 // 🌟 Secção "Em Destaque": apenas as que têm o campo 'destaque' como verdadeiro
-const featuredNews = newsValid.filter((n: any) => {
-  const attrs = n.attributes ?? n;
-  return attrs.destaque === true;
-}).slice(0, 6);
+const featuredNews = newsValid.filter((n: any) => n.destaque === true).slice(0, 6);
 
 // Se não houver nenhuma marcada como destaque, mostramos as 3 mais recentes por defeito
 const displayFeatured = featuredNews.length > 0 ? featuredNews : newsValid.slice(0, 3);
@@ -45,25 +43,13 @@ const tickerNews = newsValid.slice(0, 10);
 
 // Notícias por categoria (máx 6 por categoria)
 const noticiasPorCategoria = categorias.map((cat: any) => {
-  const catAttrs = cat.attributes ?? cat;
-  const catSlug = catAttrs.slug ?? "";
-  const catNome = catAttrs.nome ?? catAttrs.name ?? catSlug;
+  const catSlug = cat.slug ?? "";
+  const catNome = cat.nome ?? cat.name ?? catSlug;
 
   const noticias = newsValid.filter((n: any) => {
-    const attrs = n.attributes ?? n;
-    const cats = attrs.categorias;
-    if (!cats) return false;
-    const items: any[] = Array.isArray(cats)
-      ? cats
-      : Array.isArray(cats?.data)
-      ? cats.data
-      : cats?.data
-      ? [cats.data]
-      : [];
-    return items.some((c: any) => {
-      const s = c?.attributes?.slug ?? c?.slug ?? "";
-      return s === catSlug;
-    });
+    const cats = n.categorias || [];
+    const items = Array.isArray(cats) ? cats : [cats];
+    return items.some((c: any) => c.slug === catSlug);
   }).slice(0, 6);
 
   return { slug: catSlug, nome: catNome, noticias };
@@ -81,10 +67,8 @@ if (isAuthenticated && prefsCookie && prefsCookie.value) {
     if (Array.isArray(prefs) && prefs.length > 0) {
       hasPrefs = true;
       favoriteNews = newsValid.filter((n: any) => {
-        const attrs = n.attributes ?? n;
-        const cats = attrs.categorias;
-        const catSlugs = (Array.isArray(cats) ? cats : Array.isArray(cats?.data) ? cats.data : cats?.data ? [cats.data] : [])
-          .map((c: any) => c?.attributes?.slug ?? c?.slug ?? "");
+        const cats = n.categorias || [];
+        const catSlugs = (Array.isArray(cats) ? cats : [cats]).map((c: any) => c.slug ?? "");
         return catSlugs.some((cat: string) => prefs.includes(cat));
       }).slice(0, 10);
     }
@@ -95,8 +79,8 @@ if (isAuthenticated && prefsCookie && prefsCookie.value) {
 
 // Determinar a imagem LCP para pré-carregamento
 const lcpImageUrl = hasPrefs && favoriteNews.length > 0 
-  ? getImageUrl((favoriteNews[0].attributes ?? favoriteNews[0]).capa ?? (favoriteNews[0].attributes ?? favoriteNews[0]).imagem)
-  : (displayFeatured.length > 0 ? getImageUrl(displayFeatured[0].attributes?.capa ?? displayFeatured[0].attributes?.imagem) : null);
+  ? getImageUrl(favoriteNews[0].capa ?? favoriteNews[0].imagem)
+  : (displayFeatured.length > 0 ? getImageUrl(displayFeatured[0].capa ?? displayFeatured[0].imagem) : null);
 ---
 
 <Layout lcpImage={lcpImageUrl}>
@@ -108,15 +92,12 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
       <span class="ticker-label">{SITE_CONFIG.ui.home.paraSi}</span>
       <div class="ticker-track-wrapper">
         <div class="ticker-track">
-          {[...favoriteNews, ...favoriteNews].map((n: any) => {
-            const attrs = n.attributes ?? n;
-            return (
-              <a href={`/noticias/${attrs.slug}`} class="ticker-item">
-                <span class="ticker-dot">●</span>
-                {attrs.titulo}
-              </a>
-            );
-          })}
+          {[...favoriteNews, ...favoriteNews].map((n: any) => (
+            <a href={`/noticias/${n.slug}`} class="ticker-item">
+              <span class="ticker-dot">●</span>
+              {n.titulo}
+            </a>
+          ))}
         </div>
       </div>
     </div>
@@ -146,15 +127,12 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
       <span class="ticker-label">{SITE_CONFIG.ui.home.ultimas}</span>
       <div class="ticker-track-wrapper">
         <div class="ticker-track">
-          {[...tickerNews, ...tickerNews].map((n: any) => {
-            const attrs = n.attributes ?? n;
-            return (
-              <a href={`/noticias/${attrs.slug}`} class="ticker-item">
-                <span class="ticker-dot">●</span>
-                {attrs.titulo}
-              </a>
-            );
-          })}
+          {[...tickerNews, ...tickerNews].map((n: any) => (
+            <a href={`/noticias/${n.slug}`} class="ticker-item">
+              <span class="ticker-dot">●</span>
+              {n.titulo}
+            </a>
+          ))}
         </div>
       </div>
     </div>

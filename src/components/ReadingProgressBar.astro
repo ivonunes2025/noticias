@@ -1,41 +1,50 @@
 ---
-// ReadingProgressBar.astro
-// Barra de progresso de leitura fixa no topo
+// Componente ReadingProgressBar: Uma barra de progresso de leitura no topo da página.
+// A barra avança à medida que o utilizador rola a página, indicando o progresso da leitura.
+
+// Importa os estilos CSS associados a este componente.
 import "../styles/reading-progress-bar.css";
 ---
 
+<!-- O contêiner da barra de progresso, que fica fixo no topo da janela. -->
 <div class="reading-progress-container">
+  <!-- A barra de progresso em si, cuja largura é atualizada dinamicamente via JavaScript. -->
   <div id="reading-progress-bar" class="reading-progress-bar"></div>
 </div>
 
 <script>
+  // Função que configura a lógica da barra de progresso.
   function setupReadingProgress() {
     const progressBar = document.getElementById('reading-progress-bar');
+    // Se a barra de progresso não existir, a função termina.
     if (!progressBar) return;
 
+    // Função que é chamada sempre que o utilizador rola a página.
     const updateProgress = () => {
-      // Altura total do documento menos a altura da janela visual
+      // Calcula a altura total do conteúdo que pode ser rolado.
       const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
       
+      // Se não houver conteúdo para rolar, a barra fica a 0.
       if (totalHeight <= 0) {
         progressBar.style.width = '0%';
         return;
       }
 
-      // Quanto o utilizador já fez scroll
+      // Calcula a percentagem de rolagem.
       const progress = (window.scrollY / totalHeight) * 100;
       
-      // Limita entre 0 e 100
+      // Garante que a largura da barra está sempre entre 0% e 100%.
       progressBar.style.width = `${Math.min(100, Math.max(0, progress))}%`;
     };
 
+    // Adiciona um ouvinte para o evento de rolagem (scroll).
     window.addEventListener('scroll', updateProgress);
-    // Atualiza inicialmente
+    // Chama a função uma vez no início para definir o estado inicial.
     updateProgress();
   }
 
-  // Inicializa
+  // Executa a configuração quando o DOM está pronto.
   setupReadingProgress();
-  // Reinicializa após navegação do Astro
+  // Executa novamente após uma transição de página no Astro.
   document.addEventListener('astro:after-swap', setupReadingProgress);
 </script>

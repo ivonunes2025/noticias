@@ -1,24 +1,32 @@
 ---
-/**
- * Componente SectionHeader
- * Usado para padronizar os títulos das secções com a linha decorativa
- * e um opcional link "Ver mais".
- */
+// Componente SectionHeader: Um cabeçalho padronizado para as secções do site.
+// Cria um título <h2> com uma linha decorativa e um link opcional "Ver mais".
+
+// Importa os estilos CSS associados a este componente.
 import "../styles/section-header.css";
 
+// Define as propriedades que o componente pode receber.
 interface Props {
-  title: string;
-  href?: string;
-  linkText?: string;
-  id?: string;
+  title: string;    // O texto do título.
+  link?: string;   // A URL para o link "Ver mais" (opcional).
+  href?: string;   // Alias para link.
+  linkText?: string; // O texto para o link (padrão: "Ver mais").
 }
 
-const { title, href, linkText = "Ver todas →", id } = Astro.props;
+// Extrai as propriedades, definindo um valor padrão para `linkText`.
+const { title, link, href, linkText = "Ver mais" } = Astro.props;
+const finalLink = link || href;
 ---
 
-<header class="section-header" id={id}>
+<!-- 
+  O contêiner do cabeçalho da secção.
+  Usa a tag <header> por razões semânticas.
+-->
+<header class="section-header">
+  <!-- O título principal da secção. -->
   <h2>{title}</h2>
-  {href && (
-    <a href={href} class="ver-mais">{linkText}</a>
+  <!-- O link "Ver mais" só é renderizado se a propriedade `link` for fornecida. -->
+  {finalLink && (
+    <a href={finalLink} class="ver-mais">{linkText}</a>
   )}
 </header>

@@ -1,13 +1,20 @@
 ---
-/**
- * Componente de Consentimento de Cookies
- * Aparece apenas se o utilizador ainda não tiver feito uma escolha.
- */
+// Componente CookieConsent: Banner para consentimento de cookies.
+// Aparece apenas se o utilizador ainda não tiver aceitado ou recusado os cookies.
+
+// Importa os estilos CSS associados a este componente.
 import "../styles/cookie-consent.css";
 ---
 
+<!-- 
+  O contêiner principal do banner.
+  O script inline verifica se o cookie `cookie_consent` já existe.
+  Se existir, o banner não é renderizado (display: none).
+-->
 <div id="cookie-banner" class="cookie-banner" style="display: none;">
+  <!-- O conteúdo do banner, que alinha o texto e os botões. -->
   <div class="cookie-content">
+    <!-- A secção de texto com o ícone e a mensagem informativa. -->
     <div class="cookie-text">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5" />
@@ -22,6 +29,7 @@ import "../styles/cookie-consent.css";
         Ao continuar, aceita a nossa <a href="/privacidade">Política de Privacidade</a>.
       </p>
     </div>
+    <!-- Os botões de ação para o utilizador. -->
     <div class="cookie-actions">
       <button id="reject-cookies" class="cookie-btn cookie-btn--secondary">Rejeitar</button>
       <button id="accept-cookies" class="cookie-btn cookie-btn--primary">Aceitar Tudo</button>
@@ -30,27 +38,37 @@ import "../styles/cookie-consent.css";
 </div>
 
 <script>
+  // Importa as funções de manipulação de cookies do nosso ficheiro de utilitários.
   import { setCookie, getCookie } from "../utils/cookies";
 
+  // Adiciona um ouvinte que executa o código quando o conteúdo da página está totalmente carregado.
   document.addEventListener("DOMContentLoaded", () => {
+    // Seleciona os elementos do banner.
     const banner = document.getElementById("cookie-banner");
     const acceptBtn = document.getElementById("accept-cookies");
     const rejectBtn = document.getElementById("reject-cookies");
 
-    // Verificar se já existe consentimento
+    // Verifica se o cookie de consentimento já existe.
     const consent = getCookie("cookie-consent");
 
+    // Se não houver consentimento e o banner existir, torna-o visível.
     if (!consent && banner) {
       banner.style.display = "block";
     }
 
+    // Adiciona o evento de clique ao botão de aceitar.
     acceptBtn?.addEventListener("click", () => {
+      // Define um cookie chamado "cookie-consent" com o valor "accepted" e validade de 365 dias.
       setCookie("cookie-consent", "accepted", 365);
+      // Esconde o banner.
       if (banner) banner.style.display = "none";
     });
 
+    // Adiciona o evento de clique ao botão de rejeitar.
     rejectBtn?.addEventListener("click", () => {
-      setCookie("cookie-consent", "rejected", 30); // Rejeitado dura menos tempo
+      // Define o cookie com o valor "rejected" e uma validade mais curta (30 dias).
+      setCookie("cookie-consent", "rejected", 30);
+      // Esconde o banner.
       if (banner) banner.style.display = "none";
     });
   });

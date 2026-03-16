@@ -1,64 +1,82 @@
 ---
-// AudioReader.astro
-// Botão para leitura de texto (Acessibilidade)
+// Componente AudioReader: Botão para leitura de texto (Acessibilidade).
+// Utiliza a API nativa do navegador (SpeechSynthesis) para ler o título e o conteúdo da notícia.
+
+// Importa os estilos CSS associados a este componente.
 import "../styles/audio-reader.css";
 ---
 
+<!-- O contêiner principal do botão. -->
 <div class="audio-reader-container">
+  <!-- 
+    O botão que o utilizador clica para iniciar/parar a leitura.
+    Alterna entre os ícones de "Play" e "Stop".
+  -->
   <button id="tts-toggle" class="tts-btn" title="Ouvir Notícia">
+    <!-- Ícone de "Play" (ouvir), visível por defeito. -->
     <span class="tts-icon-play">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
         <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
       </svg>
     </span>
+    <!-- Ícone de "Stop" (parar), escondido por defeito. -->
     <span class="tts-icon-stop" style="display: none;">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="6" y="6" width="12" height="12"></rect>
       </svg>
     </span>
+    <!-- O texto do botão, que muda dinamicamente (ex: "Ouvir Notícia", "Parar Leitura"). -->
     <span id="tts-text">Ouvir Notícia</span>
   </button>
 </div>
 
 <script>
+  // Função principal que configura a lógica do leitor de áudio (Text-to-Speech).
   function setupTTS() {
+    // Seleciona os elementos da UI necessários para a interatividade.
     const btn = document.getElementById('tts-toggle');
     const textSpan = document.getElementById('tts-text');
     const playIcon = document.querySelector('.tts-icon-play') as HTMLElement;
     const stopIcon = document.querySelector('.tts-icon-stop') as HTMLElement;
     
+    // Se algum dos elementos essenciais não for encontrado, a função termina para evitar erros.
     if (!btn || !textSpan || !playIcon || !stopIcon) return;
 
+    // Variável para controlar o estado da leitura (a decorrer ou parada).
     let isPlaying = false;
 
+    // Função para parar a leitura e repor o estado inicial da UI.
     const stopReading = () => {
-      window.speechSynthesis.cancel();
+      window.speechSynthesis.cancel(); // Cancela qualquer fala em progresso.
       isPlaying = false;
-      btn.classList.remove('is-playing');
-      playIcon.style.display = 'block';
-      stopIcon.style.display = 'none';
-      textSpan.textContent = 'Ouvir Notícia';
+      btn.classList.remove('is-playing'); // Remove a classe de estilo "a tocar".
+      playIcon.style.display = 'block'; // Mostra o ícone de "Play".
+      stopIcon.style.display = 'none'; // Esconde o ícone de "Stop".
+      textSpan.textContent = 'Ouvir Notícia'; // Repõe o texto original do botão.
     };
 
+    // Função para iniciar a leitura do conteúdo da página.
     const startReading = () => {
-      // 1. Capturar o título e o conteúdo da notícia
+      // 1. Captura o texto do título (h1) e do conteúdo principal da notícia.
       const titulo = document.querySelector('h1')?.textContent || '';
       const conteudo = document.querySelector('.detalhe-texto')?.textContent || '';
       const fullText = `${titulo}. ${conteudo}`;
 
+      // Se não houver texto, não faz nada.
       if (!fullText.trim()) return;
 
-      // 2. Configurar a síntese de voz
+      // 2. Cria um objeto de fala (Utterance) com o texto completo.
       const utterance = new SpeechSynthesisUtterance(fullText);
-      utterance.lang = 'pt-PT';
-      utterance.rate = 1.0; // Velocidade normal
+      utterance.lang = 'pt-PT'; // Define a língua para Português de Portugal.
+      utterance.rate = 1.0; // Define a velocidade de leitura como normal.
 
-      utterance.onend = stopReading;
-      utterance.onerror = stopReading;
+      // 3. Define os eventos para quando a fala termina ou dá erro.
+      utterance.onend = stopReading; // Quando acaba, chama a função de parar.
+      utterance.onerror = stopReading; // Se der erro, também para tudo.
 
+      // 4. Inicia a leitura e atualiza a UI para o estado "a tocar".
       window.speechSynthesis.speak(utterance);
-      
       isPlaying = true;
       btn.classList.add('is-playing');
       playIcon.style.display = 'none';
@@ -66,7 +84,9 @@ import "../styles/audio-reader.css";
       textSpan.textContent = 'Parar Leitura';
     };
 
+    // Adiciona o evento de clique ao botão principal.
     btn.addEventListener('click', () => {
+      // Se estiver a tocar, para. Se não, começa a tocar.
       if (isPlaying) {
         stopReading();
       } else {
@@ -74,14 +94,14 @@ import "../styles/audio-reader.css";
       }
     });
 
-    // Parar leitura se o utilizador sair da página
+    // Adiciona um evento para garantir que a leitura para se o utilizador sair da página.
     window.addEventListener('beforeunload', () => {
       window.speechSynthesis.cancel();
     });
   }
 
-  // Inicializa
+  // Executa a função de configuração quando o DOM está pronto.
   setupTTS();
-  // Reinicializa após navegação do Astro
+  // Executa novamente após uma transição de página no Astro para garantir que o botão funcione em navegações do lado do cliente.
   document.addEventListener('astro:after-swap', setupTTS);
 </script>

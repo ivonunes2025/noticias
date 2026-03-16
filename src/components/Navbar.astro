@@ -1,44 +1,66 @@
 ---
-// Navbar do site
+// Componente Navbar: A barra de navegação principal do site.
+// É responsável por buscar dados de navegação (categorias, páginas), gerir o estado de autenticação
+// e adaptar-se a ecrãs de desktop e mobile.
+
+// Importa helpers do Strapi e a configuração central.
 import { fetchStrapi, normalize } from "../utils/strapi";
 import { SITE_CONFIG } from "../utils/config";
+// Importa os estilos CSS dedicados para este componente.
 import "../styles/navbar.css";
 
+// Define as propriedades que o componente pode receber.
+interface Props {
+  isHome?: boolean; // Se a navbar está a ser usada na página inicial.
+}
+
+// Extrai a propriedade `isHome`, com `false` como valor padrão.
 const { isHome = false } = Astro.props;
 
+// Busca em paralelo os dados necessários para a navegação (categorias, páginas, notícias).
 const [rawCategorias, rawPaginas, rawNoticias] = await Promise.all([
   fetchStrapi('categorias', { 'pagination[pageSize]': 20, 'sort': 'nome:asc' }).then(d => d || []),
   fetchStrapi('paginas', { 'fields': 'titulo,slug', 'sort': 'titulo:asc' }).then(d => d || []),
   fetchStrapi('noticias', { 'fields': 'titulo,slug', 'pagination[pageSize]': 100, 'sort': 'publishedAt:desc' }).then(d => d || [])
 ]);
 
+// Normaliza os dados para remover a complexidade da API do Strapi.
 const categorias = normalize(rawCategorias);
 const paginas = normalize(rawPaginas);
 const noticias = normalize(rawNoticias);
 
+// Prepara uma lista de todos os títulos para a funcionalidade de pesquisa silenciosa.
 const searchItems = [
   ...categorias.map((c: any) => ({ label: c.nome ?? c.name })),
   ...paginas.map((p: any) => ({ label: p.titulo })),
   ...noticias.map((n: any) => ({ label: n.titulo }))
 ];
 
+// Verifica se o utilizador está autenticado através dos cookies.
 const user = Astro.cookies.get('user_name')?.value;
 ---
 
+<!-- O cabeçalho principal que contém toda a navbar. -->
 <header class="navbar">
+  <!-- O contêiner interno que alinha e espaça o conteúdo. -->
   <div class="navbar-inner">
+    <!-- O logo do site, que é um link para a página inicial. -->
     <a href="/" class="navbar-logo">
       {SITE_CONFIG.nome.split(' ')[0]}<span>{SITE_CONFIG.nome.split(' ').slice(1).join(' ')}</span>
     </a>
 
+    <!-- A secção de navegação principal, visível em desktop. -->
     <nav class="navbar-nav">
+      <!-- Links que apontam para âncoras na página inicial. -->
       <a href={isHome ? "#noticias" : "/#noticias"} class="nav-link">{SITE_CONFIG.ui.home.destaque}</a>
       <a href={isHome ? "#ultimas" : "/#ultimas"} class="nav-link">{SITE_CONFIG.ui.home.ultimas}</a>
 
+      <!-- Renderiza os links para as páginas estáticas (ex: "Sobre Nós"). -->
       {paginas.filter((p: any) => p.slug !== 'contacto').map((p: any) => (
         <a href={`/${p.slug}`} class="nav-link">{p.titulo}</a>
       ))}
 
+      <!-- O menu dropdown para as categorias. -->
       {categorias.length > 0 && (
         <div class="nav-dropdown" id="cat-dropdown">
           <button class="nav-link nav-dropdown-btn" id="cat-btn" aria-haspopup="true" aria-expanded="false">
@@ -57,9 +79,12 @@ const user = Astro.cookies.get('user_name')?.value;
         </div>
       )}
 
+      <!-- Link para a página de contacto. -->
       <a href="/contacto" class="nav-link">{SITE_CONFIG.ui.common.contacto}</a>
       
+      <!-- Lógica condicional: mostra o perfil do utilizador ou os botões de login/registo. -->
       {user ? (
+        // Se o utilizador estiver autenticado, mostra o dropdown do perfil.
         <div class="nav-dropdown" id="user-dropdown">
           <button class="nav-link nav-dropdown-btn user-profile-btn" id="user-btn" aria-haspopup="true" aria-expanded="false">
             <div class="nav-profile-photo" id="nav-profile-photo">
@@ -78,6 +103,7 @@ const user = Astro.cookies.get('user_name')?.value;
           </div>
         </div>
       ) : (
+        // Se não estiver autenticado, mostra os botões de login e registo.
         <div class="nav-auth">
           <a href="/login" class="nav-link nav-link--login">{SITE_CONFIG.ui.auth.entrar}</a>
           <a href="/registo" class="nav-link nav-btn">{SITE_CONFIG.ui.auth.registar}</a>
@@ -85,7 +111,9 @@ const user = Astro.cookies.get('user_name')?.value;
       )}
     </nav>
 
+    <!-- Ações da navbar: pesquisa e botão de menu mobile (burger). -->
     <div class="navbar-actions">
+      <!-- A barra de pesquisa para desktop. -->
       <div class="navbar-search" id="navbar-search-desktop">
         <input type="text" id="pesquisa-input" placeholder={SITE_CONFIG.ui.search.placeholder} class="search-input" autocomplete="off" />
         <span id="search-count-desktop" class="search-count"></span>
@@ -95,12 +123,14 @@ const user = Astro.cookies.get('user_name')?.value;
           </svg>
         </button>
       </div>
+      <!-- O botão "burger" para abrir o menu em ecrãs pequenos. -->
       <button class="navbar-burger" id="burger-btn" aria-label="Menu">
         <span></span><span></span><span></span>
       </button>
     </div>
   </div>
 
+  <!-- O menu de navegação para mobile, que fica escondido por defeito. -->
   <div class="navbar-mobile" id="mobile-menu">
     <a href={isHome ? "#noticias" : "/#noticias"} class="nav-link-mobile">{SITE_CONFIG.ui.home.destaque}</a>
     <a href={isHome ? "#ultimas" : "/#ultimas"} class="nav-link-mobile">{SITE_CONFIG.ui.home.ultimas}</a>
@@ -109,6 +139,7 @@ const user = Astro.cookies.get('user_name')?.value;
       <a href={`/${p.slug}`} class="nav-link-mobile">{p.titulo}</a>
     ))}
 
+    <!-- As categorias no mobile funcionam como um acordeão. -->
     {categorias.length > 0 && (
       <div class="mobile-cat-section">
         <button class="nav-link-mobile mobile-cat-btn" id="mobile-cat-btn">
@@ -129,6 +160,7 @@ const user = Astro.cookies.get('user_name')?.value;
  
     <a href="/contacto" class="nav-link-mobile">{SITE_CONFIG.ui.common.contacto}</a>
     
+    <!-- Lógica de autenticação para o menu mobile. -->
     {user ? (
       <>
         <a href="/perfil" class={`nav-link-mobile ${Astro.url.pathname === '/perfil' ? 'ativo' : ''}`}>
@@ -150,6 +182,7 @@ const user = Astro.cookies.get('user_name')?.value;
       </div>
     )}
     
+    <!-- A barra de pesquisa para mobile. -->
     <div class="mobile-search" id="navbar-search-mobile">
       <input type="text" id="pesquisa-input-mobile" placeholder={SITE_CONFIG.ui.search.placeholder} class="search-input" autocomplete="off" />
       <span id="search-count-mobile" class="search-count"></span>
@@ -163,7 +196,9 @@ const user = Astro.cookies.get('user_name')?.value;
 </header>
 
 <script>
-  // Menu Burger
+  // --- LÓGICA DE INTERATIVIDADE DA NAVBAR ---
+
+  // 1. Lógica para o menu burger (abrir/fechar menu mobile).
   const burger = document.getElementById("burger-btn");
   const mobileMenu = document.getElementById("mobile-menu");
   burger?.addEventListener("click", () => {
@@ -171,13 +206,13 @@ const user = Astro.cookies.get('user_name')?.value;
     mobileMenu?.classList.toggle("aberto");
   });
 
-  // Dropdowns
+  // 2. Lógica para os menus dropdown de desktop (Categorias e Perfil).
   function setupDropdown(btnId: string, menuId: string, dropdownId: string) {
     const btn = document.getElementById(btnId);
     const menu = document.getElementById(menuId);
     const dropdown = document.getElementById(dropdownId);
     btn?.addEventListener("click", (e) => {
-      e.stopPropagation();
+      e.stopPropagation(); // Impede que o clique feche o menu imediatamente.
       dropdown?.classList.toggle("aberto");
       btn.setAttribute("aria-expanded", String(dropdown?.classList.contains("aberto")));
     });
@@ -185,19 +220,19 @@ const user = Astro.cookies.get('user_name')?.value;
   setupDropdown("cat-btn", "cat-menu", "cat-dropdown");
   setupDropdown("user-btn", "user-menu", "user-dropdown");
 
-  // Logout
+  // 3. Lógica de Logout (para ambos os botões, desktop e mobile).
   const logoutBtns = [document.getElementById("logout-btn"), document.getElementById("logout-btn-mobile")];
   logoutBtns.forEach(btn => btn?.addEventListener("click", async () => {
     const res = await fetch("/api/auth/logout", { method: "POST" });
-    if (res.ok) window.location.href = "/";
+    if (res.ok) window.location.href = "/"; // Redireciona para a home após o logout.
   }));
 
-  // Fechar ao clicar fora
+  // 4. Lógica para fechar os dropdowns ao clicar fora deles.
   document.addEventListener("click", () => {
     document.querySelectorAll(".nav-dropdown.aberto").forEach(d => d.classList.remove("aberto"));
   });
 
-  // Mobile Accordion
+  // 5. Lógica para o acordeão de categorias no menu mobile.
   document.getElementById("mobile-cat-btn")?.addEventListener("click", (e) => {
     const btn = e.currentTarget as HTMLElement;
     btn.classList.toggle("aberto");
@@ -206,31 +241,45 @@ const user = Astro.cookies.get('user_name')?.value;
 </script>
 
 <script define:vars={{ searchItems }}>
+  // --- LÓGICA DA PESQUISA ---
+
+  // Função que configura a barra de pesquisa (para desktop e mobile).
   function setupSearch(inputId, buttonId, countId) {
     const input = document.getElementById(inputId);
     const countEl = document.getElementById(countId);
     if (!input || !countEl) return;
 
+    // Evento que corre sempre que o utilizador escreve no campo de pesquisa.
     input.addEventListener("input", () => {
       const q = input.value.trim().toLowerCase();
+      // Só mostra o contador se a pesquisa tiver 2 ou mais caracteres.
       if (q.length < 2) {
         countEl.classList.remove("active");
         return;
       }
+      // Filtra os `searchItems` para encontrar correspondências e atualiza o contador.
       const total = searchItems.filter(i => i.label.toLowerCase().includes(q)).length;
       countEl.textContent = total;
       countEl.classList.add("active");
     });
 
+    // Função que redireciona para a página de pesquisa.
     const go = () => { if (input.value.trim()) window.location.href = `/pesquisa?q=${encodeURIComponent(input.value.trim())}`; };
+    // Adiciona o evento de clique ao botão de pesquisa.
     document.getElementById(buttonId)?.addEventListener('click', go);
+    // Permite pesquisar ao pressionar a tecla "Enter".
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
   }
+  // Configura a pesquisa para as duas barras (desktop e mobile).
   setupSearch("pesquisa-input", "search-btn-desktop", "search-count-desktop");
   setupSearch("pesquisa-input-mobile", "search-btn-mobile", "search-count-mobile");
 
-  // Foto Perfil
+  // --- LÓGICA DA FOTO DE PERFIL ---
+
+  // Obtém o nome do utilizador do cookie.
   const user = document.cookie.split('; ').find(row => row.startsWith('user_name='))?.split('=')[1];
+  // Procura a foto de perfil guardada no localStorage.
   const photo = localStorage.getItem(user ? `profile-photo-${user}` : 'profile-photo-guest');
+  // Se encontrar uma foto, atualiza o ícone de perfil com a imagem.
   if (photo) document.querySelectorAll('.nav-profile-photo').forEach(c => c.innerHTML = `<img src="${photo}" alt="Perfil" />`);
 </script>

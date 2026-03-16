@@ -2,12 +2,13 @@
 import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
 import SectionHeader from "../components/SectionHeader.astro";
-import { getCategorias } from "../utils/strapi";
+import { getCategorias, normalize } from "../utils/strapi";
 
 const user = Astro.cookies.get('user_name')?.value;
 if (!user) return Astro.redirect('/login');
 
-const categorias = await getCategorias();
+const rawCategorias = await getCategorias();
+const categorias = normalize(rawCategorias);
 ---
 
 <Layout titulo="O Meu Perfil">
@@ -39,9 +40,8 @@ const categorias = await getCategorias();
         
         <div class="categorias-grid">
           {categorias.map((cat: any) => {
-            const attrs = cat.attributes ?? cat;
-            const slug = attrs.slug ?? cat.id;
-            const nome = attrs.nome ?? attrs.name ?? slug;
+            const slug = cat.slug ?? cat.id;
+            const nome = cat.nome ?? cat.name ?? slug;
             return (
               <label class="categoria-chip">
                 <input type="checkbox" name="categorias" value={slug} />

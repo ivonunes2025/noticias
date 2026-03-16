@@ -1,36 +1,57 @@
 ---
-// CardNoticia.astro
-// Componente reutilizável para cartões de notícias em todo o site
+// Componente CardNoticia: O cartão reutilizável para exibir notícias em listas e grelhas.
+// É responsável por mostrar a imagem, título, data e resumo, além de lidar com estados como "privado" e "guardado".
+
+// Importa helpers do Strapi para várias tarefas: obter URL de imagem, formatar data, extrair texto, etc.
 import { getImageUrl, formatDate, getRichText, isNewsPrivate, checkAuth, normalize } from "../utils/strapi";
+// Importa o componente <Image> do Astro para otimização de imagens.
 import { Image } from 'astro:assets';
+// Importa o componente que mostra a sobreposição de "conteúdo privado".
 import PrivateOverlay from "./PrivateOverlay.astro";
+// Importa os estilos CSS associados a este componente.
 import "../styles/card-noticia.css";
 
+// Define as propriedades que o componente pode receber.
+interface Props {
+  noticia: any;       // O objeto da notícia vindo do Strapi.
+  horizontal?: boolean; // Se o cartão deve ter um layout horizontal (padrão: false).
+  isLCP?: boolean;      // Se a imagem deste cartão é o Largest Contentful Paint da página (para otimização de carregamento).
+}
+
+// Extrai as propriedades, definindo valores padrão.
 const { noticia: rawNoticia, horizontal = false, isLCP = false } = Astro.props;
 
+// Se não for fornecida uma notícia, o componente não renderiza nada.
 if (!rawNoticia) return null;
 
-// Normaliza a notícia para facilitar o acesso
+// Normaliza o objeto da notícia para simplificar o acesso aos seus campos.
 const noticia = normalize(rawNoticia);
 
+// Prepara as variáveis para o template usando os helpers.
 const slug = noticia.slug ?? noticia.id;
 const imagemUrl = getImageUrl(noticia.capa ?? noticia.imagem) || "/placeholder.jpg";
 const dataFormatada = formatDate(noticia.publishedAt);
 const resumo = getRichText(noticia.conteudo || noticia.resumo).slice(0, 140) + "...";
 
-// Verifica se é privada e autenticação usando helpers
+// Verifica o estado de privacidade e autenticação do utilizador.
 const isPrivateField = isNewsPrivate(noticia);
 const isAuthenticated = checkAuth(Astro.cookies);
 
-// Só mostra como bloqueada se for privada E o utilizador não estiver logado
+// A notícia só deve aparecer como bloqueada se for privada E o utilizador não estiver autenticado.
 const showBlocked = isPrivateField && !isAuthenticated;
 ---
 
+<!-- 
+  O link principal que envolve todo o cartão.
+  As classes são aplicadas dinamicamente com base nas propriedades.
+-->
 <a href={`/noticias/${slug}`} class={`noticia-card ${horizontal ? 'noticia-card--horizontal' : ''} ${showBlocked ? 'is-private' : ''}`} data-id={noticia.slug}>
+  <!-- O contêiner da imagem. -->
   <div class="noticia-img-wrapper">
+    <!-- Se a notícia for bloqueada, mostra a sobreposição de cadeado. -->
     {showBlocked && <PrivateOverlay variant="card" />}
     
-    {/* Botão de Guardar (Bookmark) - Só visível se logado e não bloqueada */}
+    <!-- O botão de "Guardar" (Bookmark) só é visível para utilizadores autenticados em notícias não bloqueadas. -->
     {isAuthenticated && !showBlocked && (
       <button class="bookmark-btn" aria-label="Guardar para ler depois" data-bookmark-id={noticia.slug} data-noticia-info={JSON.stringify({
         id: noticia.slug,
@@ -44,66 +65,86 @@ const showBlocked = isPrivateField && !isAuthenticated;
       </button>
     )}
 
-    {imagemUrl.startsWith('http') && !imagemUrl.includes('placeholder') ? (
-      <Image 
-        src={imagemUrl} 
-        alt={noticia.titulo} 
-        class={`noticia-img ${showBlocked ? 'blur-img' : ''}`} 
-        width={400} 
-        height={225}
-        format="webp"
-        quality={80}
-        loading={isLCP ? "eager" : "lazy"} 
-        fetchpriority={isLCP ? "high" : "auto"}
-      />
-    ) : (
-      <img 
-        src={imagemUrl} 
-        alt={noticia.titulo} 
-        class={`noticia-img ${showBlocked ? 'blur-img' : ''}`} 
-        loading={isLCP ? "eager" : "lazy"} 
-        width="400" 
-        height="225" 
-        fetchpriority={isLCP ? "high" : "auto"}
-      />
-    )}
-  </div>
+    <!-- 
+        Renderiza a imagem da notícia.
+        Usa o componente <Image> do Astro para otimização se a URL for externa.
+        Caso contrário, usa uma tag <img> normal (para placeholders locais).
+        A propriedade `loading` é definida como "eager" se a imagem for LCP (Largest Contentful Paint) para carregamento prioritário.
+      -->
+      {imagemUrl.startsWith('http') && !imagemUrl.includes('placeholder') ? (
+        <Image 
+          src={imagemUrl} 
+          alt={noticia.titulo} 
+          class={`noticia-img ${showBlocked ? 'blur-img' : ''}`} 
+          width={400} 
+          height={225}
+          format="webp"
+          quality={80}
+          loading={isLCP ? "eager" : "lazy"}
+          fetchpriority={isLCP ? "high" : "auto"}
+        />
+      ) : (
+        <img 
+          src={imagemUrl} 
+          alt={noticia.titulo} 
+          class={`noticia-img ${showBlocked ? 'blur-img' : ''}`} 
+          loading={isLCP ? "eager" : "lazy"} 
+          width="400" 
+          height="225" 
+          fetchpriority={isLCP ? "high" : "auto"}
+        />
+      )}
+    </div>
+  <!-- O corpo do cartão, com as informações textuais. -->
   <div class="noticia-corpo">
     <span class="noticia-data">{dataFormatada}</span>
     <h3 class="noticia-titulo">{noticia.titulo}</h3>
+    <!-- O resumo só é mostrado no layout vertical padrão. -->
     {!horizontal && <p class="noticia-resumo">{resumo}</p>}
   </div>
 </a>
 
 <script>
+  // Função que configura a lógica dos botões de "Guardar" (bookmark).
   function setupBookmarks() {
+    // Seleciona todos os botões de bookmark na página.
     const bookmarkBtns = document.querySelectorAll('.bookmark-btn');
+
+    // Helper para obter as notícias guardadas do localStorage.
     const getSavedNews = () => {
       const saved = localStorage.getItem('ler-depois');
       return saved ? JSON.parse(saved) : [];
     };
+
+    // Função para atualizar o estado visual de todos os botões (se estão guardados ou não).
     const updateButtonsState = () => {
       const savedNews = getSavedNews();
       const savedIds = savedNews.map((n: any) => n.id);
       document.querySelectorAll('.bookmark-btn').forEach(btn => {
         const id = btn.getAttribute('data-bookmark-id');
         if (id && savedIds.includes(id)) {
-          btn.classList.add('is-saved');
+          btn.classList.add('is-saved'); // Adiciona classe se estiver guardado.
         } else {
-          btn.classList.remove('is-saved');
+          btn.classList.remove('is-saved'); // Remove classe se não estiver.
         }
       });
     };
+
+    // Adiciona o evento de clique a cada botão.
     bookmarkBtns.forEach(btn => {
       btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); // Impede que o clique no botão navegue para a notícia.
+        e.stopPropagation(); // Impede que o evento se propague para o link do cartão.
+
         const id = btn.getAttribute('data-bookmark-id');
         const infoStr = btn.getAttribute('data-noticia-info');
         if (!id || !infoStr) return;
+
         const noticiaInfo = JSON.parse(infoStr);
         let savedNews = getSavedNews();
         const index = savedNews.findIndex((n: any) => n.id === id);
+
+        // Se a notícia já estiver guardada, remove-a. Caso contrário, adiciona-a.
         if (index > -1) {
           savedNews.splice(index, 1);
           btn.classList.remove('is-saved');
@@ -111,15 +152,22 @@ const showBlocked = isPrivateField && !isAuthenticated;
           savedNews.push(noticiaInfo);
           btn.classList.add('is-saved');
         }
+
+        // Atualiza o localStorage e dispara um evento global para notificar outras partes da UI (ex: a página de perfil).
         localStorage.setItem('ler-depois', JSON.stringify(savedNews));
         window.dispatchEvent(new CustomEvent('bookmarks-updated'));
       });
     });
+
+    // Atualiza o estado dos botões assim que o script corre.
     updateButtonsState();
 
-    // Ouvir mudanças externas
+    // Adiciona um ouvinte para o evento global, para que os botões se atualizem se uma notícia for removida noutro local.
     window.addEventListener('bookmarks-updated', updateButtonsState);
   }
+
+  // Executa a configuração inicial.
   setupBookmarks();
+  // Executa novamente após uma transição de página no Astro.
   document.addEventListener('astro:after-swap', setupBookmarks);
 </script>

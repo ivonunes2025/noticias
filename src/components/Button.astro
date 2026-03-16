@@ -1,41 +1,48 @@
----
-/**
- * Componente Button
- * Botão padronizado com variantes.
- */
-interface Props {
-  type?: 'button' | 'submit';
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger';
-  class?: string;
-  id?: string;
-  href?: string;
-  [key: string]: any;
-}
+--- 
+// Componente Button: Um botão genérico e reutilizável com várias variantes de estilo.
+// Pode ser renderizado como um <button> ou um <a> (link), dependendo do uso.
 
+// Importa os estilos CSS associados a este componente.
 import "../styles/button.css";
 
+// Define as propriedades que o componente pode receber.
+interface Props {
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger'; // Estilo do botão.
+  href?: string;           // Se fornecido, o componente será um link (<a>).
+  class?: string;          // Classes CSS adicionais para personalização.
+  id?: string;             // ID opcional para o botão.
+  type?: 'button' | 'submit' | 'reset'; // Tipo do botão (se não for um link).
+  disabled?: boolean;      // Se o botão está desativado.
+}
+
+// Extrai as propriedades, definindo valores padrão.
 const { 
-  type = 'button', 
   variant = 'primary', 
-  class: className = '', 
-  id, 
   href,
-  ...rest 
+  class: className,
+  id,
+  type = 'button',
+  disabled = false
 } = Astro.props;
 
+// Determina se o elemento deve ser um <a> (se tiver href) ou um <button>.
 const Element = href ? 'a' : 'button';
 ---
 
-<Element
-  {...rest}
+<!-- 
+  Renderiza o elemento dinâmico (<a> ou <button>).
+  As classes são aplicadas dinamicamente para estilização:
+  - `btn`: classe base para todos os botões.
+  - `btn--{variant}`: aplica o estilo da variante (ex: `btn--primary`).
+  - `className`: quaisquer classes extras passadas para o componente.
+-->
+<Element 
   id={id}
+  class:list={["btn", `btn--${variant}`, className]}
   href={href}
-  type={href ? undefined : type}
-  class:list={[
-    'btn',
-    `btn--${variant}`,
-    className
-  ]}
+  type={Element === 'button' ? type : undefined}
+  disabled={disabled}
 >
+  <!-- O <slot /> renderiza o conteúdo dentro do botão (ex: o texto ou um ícone). -->
   <slot />
 </Element>

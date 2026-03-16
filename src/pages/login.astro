@@ -142,38 +142,37 @@ if (user) {
     font-size: 0.95rem;
   }
 
-  /* Grupos de Input */
+  /* Grupos de Input (Estilo Unificado) */
   .input-group {
     position: relative;
-    margin-bottom: 32px;
-    display: flex;
-    flex-direction: column-reverse; /* Inverte a ordem para o label ficar em cima no HTML mas visualmente em cima */
+    margin-bottom: 30px;
   }
 
   .input-group input {
     width: 100%;
     padding: 12px 0;
+    font-size: 1rem;
+    color: var(--cor-texto);
     background: transparent;
     border: none;
     border-bottom: 1px solid var(--cor-borda);
-    color: var(--cor-texto);
-    font-size: 1rem;
     outline: none;
     transition: all 0.3s ease;
   }
 
   .input-group label {
-    display: block;
-    font-size: 0.9rem;
+    position: absolute;
+    top: 12px;
+    left: 0;
     color: var(--cor-texto-suave);
-    margin-bottom: 8px;
-    transition: all 0.3s ease;
     pointer-events: none;
+    transition: all 0.3s ease;
   }
 
-  /* Removemos a animação flutuante antiga para deixar fixo em cima */
   .input-group input:focus ~ label,
   .input-group input:not(:placeholder-shown) ~ label {
+    top: -12px;
+    font-size: 0.8rem;
     color: var(--cor-destaque);
   }
 

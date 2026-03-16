@@ -1,22 +1,37 @@
 ---
-/**
- * Componente AuthCard
- * Contentor padronizado para as páginas de autenticação.
- */
+// Componente AuthCard: Contentor padronizado para as páginas de autenticação (Login/Registo).
+// Define a estrutura visual comum, como o título e o subtítulo, para manter a consistência.
+
+// Importa os estilos CSS associados a este componente.
 import "../styles/auth-card.css";
 
+// Define as propriedades que o componente pode receber.
 interface Props {
-  title: string;
-  subtitle?: string;
+  title: string;      // O título principal do cartão (ex: "Login").
+  subtitle?: string; // O texto descritivo opcional abaixo do título.
 }
 
+// Extrai as propriedades recebidas para uso no template.
 const { title, subtitle } = Astro.props;
 ---
 
+<!-- 
+  O cartão principal que envolve o conteúdo.
+  A classe `auth-card` aplica os estilos de fundo, borda e sombra.
+  A classe `reveal` aplica uma animação de entrada.
+-->
 <div class="auth-card reveal">
+  <!-- O cabeçalho do cartão, que contém o título e o subtítulo. -->
   <div class="auth-header">
     <h1>{title}</h1>
+    <!-- O subtítulo só é renderizado se for fornecido. -->
     {subtitle && <p>{subtitle}</p>}
   </div>
+
+  <!-- 
+    O <slot /> é um marcador de posição. 
+    Qualquer conteúdo colocado dentro do <AuthCard> noutra página (ex: o formulário de login)
+    será renderizado aqui.
+  -->
   <slot />
 </div>
