@@ -96,6 +96,40 @@ export function formatTituloPt(nome: string): string {
 }
 
 /**
+ * Mapa de handlers para renderizar diferentes tipos de blocos do Strapi.
+ * Segue o Princípio Aberto/Fechado (SOLID).
+ */
+const blockHandlers: Record<string, (block: any, strapiUrl?: string) => string> = {
+  heading: (block) => {
+    const text = block.children?.map((c: any) => c.text).join("") ?? "";
+    return `<h${block.level}>${text}</h${block.level}>`;
+  },
+  paragraph: (block) => {
+    const text = block.children?.map((c: any) => c.text).join("") ?? "";
+    return `<p>${text}</p>`;
+  },
+  list: (block) => {
+    const tag = block.format === "ordered" ? "ol" : "ul";
+    const items = block.children
+      ?.map(
+        (c: any) =>
+          `<li>${c.children?.map((x: any) => x.text).join("") ?? ""}</li>`,
+      )
+      .join("");
+    return `<${tag}>${items}</${tag}>`;
+  },
+  image: (block, strapiUrl) => {
+    const img = block.image || block.data;
+    const url = img?.url ?? img?.attributes?.url ?? img?.data?.attributes?.url;
+    const alt = img?.alternativeText ?? img?.caption ?? "";
+    
+    if (!url) return "";
+    const fullUrl = url.startsWith("http") ? url : `${strapiUrl}${url.startsWith('/') ? url : `/${url}`}`;
+    return `<div class="rich-image-container"><img src="${fullUrl}" alt="${alt}" class="rich-image" /></div>`;
+  },
+};
+
+/**
  * Converte a estrutura de blocos do editor rico do Strapi em HTML válido.
  */
 export function renderBlocks(blocks: any): string {
@@ -106,36 +140,8 @@ export function renderBlocks(blocks: any): string {
 
   return blocks
     .map((block: any) => {
-      // Caso seja uma imagem dentro dos blocos (Strapi Rich Text Blocks)
-      if (block.type === "image") {
-        const img = block.image || block.data;
-        const url = img?.url ?? img?.attributes?.url ?? img?.data?.attributes?.url;
-        const alt = img?.alternativeText ?? img?.caption ?? "";
-        
-        if (!url) return "";
-        const fullUrl = url.startsWith("http") ? url : `${STRAPI}${url.startsWith('/') ? url : `/${url}`}`;
-        return `<div class="rich-image-container"><img src="${fullUrl}" alt="${alt}" class="rich-image" /></div>`;
-      }
-
-      const text = block.children?.map((c: any) => c.text).join("") ?? "";
-      switch (block.type) {
-        case "heading":
-          return `<h${block.level}>${text}</h${block.level}>`;
-        case "paragraph":
-          return `<p>${text}</p>`;
-        case "list": {
-          const tag = block.format === "ordered" ? "ol" : "ul";
-          const items = block.children
-            ?.map(
-              (c: any) =>
-                `<li>${c.children?.map((x: any) => x.text).join("") ?? ""}</li>`,
-            )
-            .join("");
-          return `<${tag}>${items}</${tag}>`;
-        }
-        default:
-          return `<p>${text}</p>`;
-      }
+      const handler = blockHandlers[block.type];
+      return handler ? handler(block, STRAPI) : `<p>${block.children?.map((c: any) => c.text).join("") ?? ""}</p>`;
     })
     .join("");
 }
@@ -158,4 +164,26 @@ export function isNewsPrivate(noticia: any): boolean {
  */
 export function checkAuth(cookies: any): boolean {
   return !!cookies.get("user_name")?.value;
+}
+
+/**
+ * Encapsula o acesso aos dados de uma notícia para exibição (Lei de Deméter).
+ * Centraliza a lógica de fallback e formatação.
+ */
+export function getNoticiaDisplayData(noticia: any) {
+  if (!noticia) return null;
+
+  const attrs = noticia.attributes ?? noticia;
+  
+  return {
+    titulo: attrs.titulo ?? "",
+    slug: attrs.slug ?? attrs.id?.toString() ?? "",
+    dataFormatada: formatDate(attrs.publishedAt),
+    imagemUrl: getImageUrl(attrs.capa ?? attrs.imagem),
+    autor: attrs.autor ?? null,
+    resumo: getRichText(attrs.resumo || attrs.conteudo).slice(0, 140) + "...",
+    conteudoHtml: renderBlocks(attrs.conteudo),
+    isPrivada: isNewsPrivate(noticia),
+    categorias: attrs.categorias ?? []
+  };
 }

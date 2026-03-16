@@ -3,11 +3,11 @@
 // É responsável por mostrar a imagem, título, data e resumo, além de lidar com estados como "privado" e "guardado".
 
 // Importa helpers do Strapi para várias tarefas: obter URL de imagem, formatar data, extrair texto, etc.
-import { getImageUrl, formatDate, getRichText, isNewsPrivate, checkAuth, normalize } from "../utils/strapi";
+import { checkAuth, normalize, getNoticiaDisplayData } from "../utils/strapi";
 // Importa o componente <Image> do Astro para otimização de imagens.
 import { Image } from 'astro:assets';
 // Importa o componente que mostra a sobreposição de "conteúdo privado".
-import PrivateOverlay from "./PrivateOverlay.astro";
+import PrivateOverlayCard from "./PrivateOverlayCard.astro";
 // Importa os estilos CSS associados a este componente.
 import "../styles/card-noticia.css";
 
@@ -25,37 +25,36 @@ const { noticia: rawNoticia, horizontal = false, isLCP = false } = Astro.props;
 if (!rawNoticia) return null;
 
 // Normaliza o objeto da notícia para simplificar o acesso aos seus campos.
-const noticia = normalize(rawNoticia);
+const normalized = normalize(rawNoticia);
+const displayData = getNoticiaDisplayData(normalized);
 
-// Prepara as variáveis para o template usando os helpers.
-const slug = noticia.slug ?? noticia.id;
-const imagemUrl = getImageUrl(noticia.capa ?? noticia.imagem) || "/placeholder.jpg";
-const dataFormatada = formatDate(noticia.publishedAt);
-const resumo = getRichText(noticia.conteudo || noticia.resumo).slice(0, 140) + "...";
+if (!displayData) return null;
 
-// Verifica o estado de privacidade e autenticação do utilizador.
-const isPrivateField = isNewsPrivate(noticia);
+const { slug, titulo, dataFormatada, resumo, isPrivada } = displayData;
+const imagemUrl = displayData.imagemUrl || "/placeholder.jpg";
+
+// Verifica o estado de autenticação do utilizador.
 const isAuthenticated = checkAuth(Astro.cookies);
 
 // A notícia só deve aparecer como bloqueada se for privada E o utilizador não estiver autenticado.
-const showBlocked = isPrivateField && !isAuthenticated;
+const showBlocked = isPrivada && !isAuthenticated;
 ---
 
 <!-- 
   O link principal que envolve todo o cartão.
   As classes são aplicadas dinamicamente com base nas propriedades.
 -->
-<a href={`/noticias/${slug}`} class={`noticia-card ${horizontal ? 'noticia-card--horizontal' : ''} ${showBlocked ? 'is-private' : ''}`} data-id={noticia.slug}>
+<a href={`/noticias/${slug}`} class={`noticia-card ${horizontal ? 'noticia-card--horizontal' : ''} ${showBlocked ? 'is-private' : ''}`} data-id={slug}>
   <!-- O contêiner da imagem. -->
   <div class="noticia-img-wrapper">
     <!-- Se a notícia for bloqueada, mostra a sobreposição de cadeado. -->
-    {showBlocked && <PrivateOverlay variant="card" />}
+    {showBlocked && <PrivateOverlayCard />}
     
     <!-- O botão de "Guardar" (Bookmark) só é visível para utilizadores autenticados em notícias não bloqueadas. -->
     {isAuthenticated && !showBlocked && (
-      <button class="bookmark-btn" aria-label="Guardar para ler depois" data-bookmark-id={noticia.slug} data-noticia-info={JSON.stringify({
-        id: noticia.slug,
-        titulo: noticia.titulo,
+      <button class="bookmark-btn" aria-label="Guardar para ler depois" data-bookmark-id={slug} data-noticia-info={JSON.stringify({
+        id: slug,
+        titulo: titulo,
         imagem: imagemUrl,
         data: dataFormatada
       })}>
@@ -74,7 +73,7 @@ const showBlocked = isPrivateField && !isAuthenticated;
       {imagemUrl.startsWith('http') && !imagemUrl.includes('placeholder') ? (
         <Image 
           src={imagemUrl} 
-          alt={noticia.titulo} 
+          alt={titulo} 
           class={`noticia-img ${showBlocked ? 'blur-img' : ''}`} 
           width={400} 
           height={225}
@@ -86,7 +85,7 @@ const showBlocked = isPrivateField && !isAuthenticated;
       ) : (
         <img 
           src={imagemUrl} 
-          alt={noticia.titulo} 
+          alt={titulo} 
           class={`noticia-img ${showBlocked ? 'blur-img' : ''}`} 
           loading={isLCP ? "eager" : "lazy"} 
           width="400" 
@@ -98,7 +97,7 @@ const showBlocked = isPrivateField && !isAuthenticated;
   <!-- O corpo do cartão, com as informações textuais. -->
   <div class="noticia-corpo">
     <span class="noticia-data">{dataFormatada}</span>
-    <h3 class="noticia-titulo">{noticia.titulo}</h3>
+    <h3 class="noticia-titulo">{titulo}</h3>
     <!-- O resumo só é mostrado no layout vertical padrão. -->
     {!horizontal && <p class="noticia-resumo">{resumo}</p>}
   </div>

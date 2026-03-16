@@ -7,8 +7,8 @@ import Layout from "../../layouts/Layout.astro";
 import Navbar from "../../components/Navbar.astro";
 import CardNoticia from "../../components/CardNoticia.astro";
 import Autor from "../../components/Autor.astro";
-import { getRichText, getImageUrl, formatDate, isNewsPrivate, checkAuth, normalize } from "../../utils/strapi";
-import PrivateOverlay from "../../components/PrivateOverlay.astro";
+import { checkAuth, normalize, getNoticiaDisplayData } from "../../utils/strapi";
+import PrivateOverlayFull from "../../components/PrivateOverlayFull.astro";
 import ShareMenu from "../../components/ShareMenu.astro";
 import ReadingProgressBar from "../../components/ReadingProgressBar.astro";
 import AudioReader from "../../components/AudioReader.astro";
@@ -58,18 +58,19 @@ try {
 }
 
 // Normaliza o objeto de notícia usando o utilitário global
-const noticia = normalize(res.data?.[0]);
+const rawNoticia = normalize(res.data?.[0]);
+const displayData = getNoticiaDisplayData(rawNoticia);
 
 // 3. BLOQUEIO CRÍTICO: Se for privada e não houver login
-const isPrivate = isNewsPrivate(noticia);
+const isPrivate = displayData?.isPrivada ?? false;
 
 // Removido o Astro.redirect automático para permitir mostrar o "Preview Bloqueado"
 const showLockScreen = isPrivate && !isAuthenticated;
 
 // Notícias relacionadas (mesmas categorias). Usamos `slug` para evitar incluir a própria notícia.
 let relatedNews: any[] = [];
-if (noticia) {
-  const cats: any[] = Array.isArray(noticia.categorias) ? noticia.categorias : [];
+if (displayData) {
+  const cats: any[] = Array.isArray(displayData.categorias) ? displayData.categorias : [];
 
   const catSlugs = cats
     .map((c: any) => c.slug)
@@ -91,14 +92,13 @@ if (noticia) {
     }
   }
 }
-
 ---
 
-<Layout titulo={noticia?.titulo}>
+<Layout titulo={displayData?.titulo}>
   {!showLockScreen && <ReadingProgressBar />}
   <Navbar isHome={false} />
 
-  { !noticia ? (
+  { !displayData ? (
     <section class="detalhe">
       <a href="/" class="voltar">← Voltar</a>
       <h1>Notícia não encontrada</h1>
@@ -109,14 +109,14 @@ if (noticia) {
       <a href="/" class="voltar">← Voltar</a>
       
       {/* Título AGORA EM CIMA da notícia */}
-      <h1>{noticia?.titulo}</h1>
+      <h1>{displayData.titulo}</h1>
 
-      {noticia?.autor && (
+      {displayData.autor && (
         <div class="meta-header" style="margin-bottom: 24px;">
           <div class="meta-left">
-            <Autor autor={noticia.autor} />
-            {noticia.publishedAt && (
-              <span class="detalhe-data">{formatDate(noticia.publishedAt)}</span>
+            <Autor autor={displayData.autor} />
+            {displayData.dataFormatada && (
+              <span class="detalhe-data">{displayData.dataFormatada}</span>
             )}
           </div>
         </div>
@@ -124,15 +124,15 @@ if (noticia) {
 
       <div class="lock-container">
         <div class="lock-image-wrapper">
-          {getImageUrl(noticia?.capa) && (
+          {displayData.imagemUrl && (
             <img
-              src={getImageUrl(noticia?.capa)}
-              alt={noticia?.titulo}
+              src={displayData.imagemUrl}
+              alt={displayData.titulo}
               class="detalhe-img blurred"
             />
           )}
           <div class="lock-overlay">
-            <PrivateOverlay variant="full" />
+            <PrivateOverlayFull />
             
             {/* Botão de Login Bem Visível */}
             <div class="auth-cta-wrapper">
@@ -162,10 +162,10 @@ if (noticia) {
         <a href="/" class="voltar">← Voltar</a>
 
         {
-          getImageUrl(noticia?.capa) && (
+          displayData.imagemUrl && (
             <img
-              src={getImageUrl(noticia?.capa)}
-              alt={noticia?.titulo}
+              src={displayData.imagemUrl}
+              alt={displayData.titulo}
               class="detalhe-img"
             />
           )
@@ -173,9 +173,9 @@ if (noticia) {
 
         <div class="meta-header">
           <div class="meta-left">
-            {noticia?.autor && <Autor autor={noticia.autor} />}
-            {noticia?.publishedAt && (
-              <span class="detalhe-data">{formatDate(noticia.publishedAt)}</span>
+            {displayData.autor && <Autor autor={displayData.autor} />}
+            {displayData.dataFormatada && (
+              <span class="detalhe-data">{displayData.dataFormatada}</span>
             )}
             <AudioReader />
           </div>
@@ -184,12 +184,12 @@ if (noticia) {
               <button 
                 class="bookmark-btn" 
                 aria-label="Guardar para ler depois" 
-                data-bookmark-id={noticia?.slug} 
+                data-bookmark-id={displayData.slug} 
                 data-noticia-info={JSON.stringify({
-                  id: noticia?.slug,
-                  titulo: noticia?.titulo,
-                  imagem: getImageUrl(noticia?.capa),
-                  data: formatDate(noticia?.publishedAt)
+                  id: displayData.slug,
+                  titulo: displayData.titulo,
+                  imagem: displayData.imagemUrl,
+                  data: displayData.dataFormatada
                 })}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -201,12 +201,12 @@ if (noticia) {
           </div>
         </div>
 
-        <h1>{noticia?.titulo}</h1>
-        <div class="detalhe-texto">{getRichText(noticia?.conteudo)}</div>
+        <h1>{displayData.titulo}</h1>
+        <div class="detalhe-texto" set:html={displayData.conteudoHtml} />
 
-        {noticia?.autor && (
+        {displayData.autor && (
           <div class="autor-footer">
-            <Autor autor={noticia.autor} variant="large" />
+            <Autor autor={displayData.autor} variant="large" />
           </div>
         )}
       </section>
