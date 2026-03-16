@@ -1,0 +1,43 @@
+/* src/styles/forms.css */
+/* Estilos partilhados para formulários e grupos de input em todo o site (DRY) */
+
+.input-group {
+  position: relative;
+  margin-bottom: 30px;
+}
+
+.input-group input,
+.input-group textarea {
+  width: 100%;
+  padding: 12px 0;
+  font-size: 1rem;
+  color: var(--cor-texto);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--cor-borda);
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.input-group label {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  color: var(--cor-texto-suave);
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+
+.input-group input:focus ~ label,
+.input-group input:not(:placeholder-shown) ~ label,
+.input-group textarea:focus ~ label,
+.input-group textarea:not(:placeholder-shown) ~ label {
+  top: -12px;
+  font-size: 0.8rem;
+  color: var(--cor-destaque);
+}
+
+.input-group input:focus,
+.input-group textarea:focus {
+  border-bottom-color: var(--cor-destaque);
+}
