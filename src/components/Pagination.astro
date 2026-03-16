@@ -1,0 +1,82 @@
+---
+/**
+ * Componente de Paginação Genérico
+ * - currentPage: Página atual (1-based)
+ * - totalPages: Total de páginas
+ * - baseUrl: URL base para os links (ex: "/categorias/slug")
+ * - queryParam: Nome do parâmetro de consulta (padrão: "page")
+ */
+interface Props {
+  currentPage: number;
+  totalPages: number;
+  baseUrl: string;
+  queryParam?: string;
+}
+
+const { currentPage, totalPages, baseUrl, queryParam = "page" } = Astro.props;
+
+import "../styles/paginacao.css";
+
+if (totalPages <= 1) return null;
+
+// Helper para construir o link
+const getUrl = (page: number) => {
+  const url = new URL(baseUrl, "http://localhost"); // Dummy host para manipulação de URL
+  url.searchParams.set(queryParam, page.toString());
+  // Se for a URL da página de pesquisa, manter o parâmetro 'q' se existir
+  if (typeof window !== 'undefined') {
+    const currentUrl = new URL(window.location.href);
+    const q = currentUrl.searchParams.get("q");
+    if (q) url.searchParams.set("q", q);
+  }
+  return `${baseUrl}${url.search}`;
+};
+
+// Gerar array de páginas para mostrar
+const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+
+// Mostrar apenas algumas páginas se houver muitas (ex: 1, 2, ..., n-1, n)
+const visiblePages = pages.filter(p => {
+  return p === 1 || p === totalPages || (p >= currentPage - 2 && p <= currentPage + 2);
+});
+
+const formattedPages: (number | string)[] = [];
+let lastPage = 0;
+for (const p of visiblePages) {
+  if (lastPage && p - lastPage > 1) {
+    formattedPages.push("...");
+  }
+  formattedPages.push(p);
+  lastPage = p;
+}
+---
+
+<nav class="pagination" aria-label="Navegação de páginas">
+  {currentPage > 1 && (
+    <a href={getUrl(currentPage - 1)} class="pagination-btn prev" aria-label="Página anterior">
+      ‹ <span>Anterior</span>
+    </a>
+  )}
+
+  <div class="pagination-pages">
+    {formattedPages.map((p) => (
+      typeof p === "number" ? (
+        <a 
+          href={getUrl(p)} 
+          class={`pagination-item ${p === currentPage ? "is-active" : ""}`}
+          aria-current={p === currentPage ? "page" : undefined}
+        >
+          {p}
+        </a>
+      ) : (
+        <span class="pagination-ellipsis">{p}</span>
+      )
+    ))}
+  </div>
+
+  {currentPage < totalPages && (
+    <a href={getUrl(currentPage + 1)} class="pagination-btn next" aria-label="Próxima página">
+      <span>Próxima</span> ›
+    </a>
+  )}
+</nav>

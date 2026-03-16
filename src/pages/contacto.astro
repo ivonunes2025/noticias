@@ -12,14 +12,13 @@ import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
 import Button from "../components/Button.astro";
 import SectionHeader from "../components/SectionHeader.astro";
-import { getImageUrl, fetchStrapi } from "../utils/strapi";
+import { getImageUrl, fetchStrapi, normalize } from "../utils/strapi";
 import { SITE_CONFIG } from "../utils/config";
 import "../styles/forms.css";
 
 // Busca dados da página de contacto no Strapi
 const pageRes = await fetchStrapi('paginas', { 'filters[slug][$eq]': 'contacto', 'populate': '*' });
-const pageItem = Array.isArray(pageRes) ? pageRes[0] : pageRes;
-const contacto = pageItem?.attributes ?? pageItem;
+const contacto = normalize(pageRes)?.[0];
 ---
 
 <Layout titulo={contacto?.titulo ?? SITE_CONFIG.ui.common.contacto}>

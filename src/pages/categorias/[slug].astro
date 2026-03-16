@@ -3,34 +3,41 @@ export const prerender = false;
 import Layout from "../../layouts/Layout.astro";
 import Navbar from "../../components/Navbar.astro";
 import CardNoticia from "../../components/CardNoticia.astro";
-import { formatTituloPt } from "../../utils/strapi";
+import Pagination from "../../components/Pagination.astro";
+import { formatTituloPt, fetchStrapi, normalize } from "../../utils/strapi";
 
-const STRAPI = import.meta.env.STRAPI_URL;
 const { slug } = Astro.params;
 const slugEncoded = encodeURIComponent(slug ?? "");
 
+// Paginação
+const page = Number(Astro.url.searchParams.get("page") || 1);
+const pageSize = 9; // Número de notícias por página
+
 const [categoriaRes, noticiasRes] = await Promise.all([
-  fetch(
-    `${STRAPI}/api/categorias?filters[slug][$eq]=${slugEncoded}`
-  ).then((r) => r.json()),
-  fetch(
-    `${STRAPI}/api/noticias?filters[categorias][slug][$eq]=${slugEncoded}&populate[categorias][fields][0]=slug&populate[categorias][fields][1]=nome&populate[capa][fields][0]=url&pagination[pageSize]=100`
-  ).then((r) => r.json()),
+  fetchStrapi(`categorias`, {
+    'filters[slug][$eq]': slug ?? ""
+  }),
+  fetchStrapi(`noticias`, {
+    'filters[categorias][slug][$eq]': slug ?? "",
+    'populate[categorias][fields][0]': 'slug',
+    'populate[categorias][fields][1]': 'nome',
+    'populate[capa][fields][0]': 'url',
+    'pagination[page]': page,
+    'pagination[pageSize]': pageSize,
+    'sort': 'publishedAt:desc'
+  }),
 ]);
 
-const categoriaData = categoriaRes.data?.[0];
-const attrsCategoria = categoriaData?.attributes ?? categoriaData;
-const nomeCategoriaRaw = attrsCategoria?.nome ?? attrsCategoria?.name ?? slug ?? "";
-
-const newsRaw: any[] = noticiasRes.data ?? [];
+const categoriaData = normalize(categoriaRes?.[0]);
+const nomeCategoriaRaw = categoriaData?.nome ?? categoriaData?.name ?? slug ?? "";
 const nomeCategoria = formatTituloPt(nomeCategoriaRaw);
+
+const news = normalize(noticiasRes);
+const meta = noticiasRes?.meta?.pagination || { page: 1, pageSize: 9, pageCount: 1, total: 0 };
 
 // Estado de autenticação (Cookies) para filtrar notícias privadas
 const userCookie = Astro.cookies.get('user_name');
 const isAuthenticated = !!userCookie?.value;
-
-
-const news = newsRaw;
 ---
 
 <Layout titulo={`${nomeCategoria} - Categorias`}>
@@ -45,30 +52,19 @@ const news = newsRaw;
 
     {
       news.length > 0 ? (
-        <div class="carrossel">
-          <button
-            type="button"
-            class="carrossel-arrow carrossel-prev"
-            aria-label="Notícia anterior"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            class="carrossel-arrow carrossel-next"
-            aria-label="Próxima notícia"
-          >
-            ›
-          </button>
-
-          <div class="carrossel-track">
+        <>
+          <div class="noticias-grid">
             {news.map((n: any) => (
-              <div class="carrossel-slide">
-                <CardNoticia noticia={n} />
-              </div>
+              <CardNoticia noticia={n} />
             ))}
           </div>
-        </div>
+
+          <Pagination 
+            currentPage={meta.page} 
+            totalPages={meta.pageCount} 
+            baseUrl={`/categorias/${slug}`}
+          />
+        </>
       ) : (
         <p class="sem-noticias">
           Não há notícias nesta categoria. Associe notícias a esta categoria no

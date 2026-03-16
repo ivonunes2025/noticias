@@ -7,23 +7,31 @@ export const prerender = false;
 import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
 import CardNoticia from "../components/CardNoticia.astro";
+import Pagination from "../components/Pagination.astro";
+import { fetchStrapi, normalize } from "../utils/strapi";
 
-const STRAPI = import.meta.env.STRAPI_URL;
 const q = (Astro.url.searchParams.get("q") ?? "").trim();
+const page = Number(Astro.url.searchParams.get("page") || 1);
+const pageSize = 9;
 
 let noticias: any[] = [];
+let meta = { page: 1, pageSize: 9, pageCount: 1, total: 0 };
 
-if (q && STRAPI) {
+if (q) {
   try {
     const encoded = encodeURIComponent(q);
 
-    const noticiasRes = await fetch(
-      `${STRAPI}/api/noticias?` +
-        `filters[$or][0][titulo][$containsi]=${encoded}&` +
-        `filters[$or][1][conteudo][$containsi]=${encoded}&populate=*`,
-    ).then((r) => r.json());
+    const noticiasRes = await fetchStrapi(`noticias`, {
+      'filters[$or][0][titulo][$containsi]': q,
+      'filters[$or][1][conteudo][$containsi]': q,
+      'populate': '*',
+      'pagination[page]': page,
+      'pagination[pageSize]': pageSize,
+      'sort': 'publishedAt:desc'
+    });
 
-    noticias = Array.isArray(noticiasRes?.data) ? noticiasRes.data : [];
+    noticias = normalize(noticiasRes);
+    meta = noticiasRes?.meta?.pagination || meta;
   } catch (e) {
     console.error("Erro ao pesquisar no Strapi:", e);
   }
@@ -56,15 +64,19 @@ const temResultados = noticias.length > 0;
     {
       q && temResultados && (
         <div class="resultados-wrapper">
-          {noticias.length > 0 && (
-            <section class="bloco-resultados">
-              <div class="noticias-grid">
-                {noticias.map((n: any) => (
-                  <CardNoticia noticia={n} />
-                ))}
-              </div>
-            </section>
-          )}
+          <section class="bloco-resultados">
+            <div class="noticias-grid">
+              {noticias.map((n: any) => (
+                <CardNoticia noticia={n} />
+              ))}
+            </div>
+          </section>
+
+          <Pagination 
+            currentPage={meta.page} 
+            totalPages={meta.pageCount} 
+            baseUrl="/pesquisa"
+          />
         </div>
       )
     }

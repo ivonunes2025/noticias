@@ -97,7 +97,6 @@ const user = Astro.cookies.get('user_name')?.value;
           <div class="dropdown-menu" id="user-menu" role="menu">
             <a href="/perfil#preferencias" class="dropdown-item">Preferências</a>
             <a href="/perfil#tema" class="dropdown-item">Tema</a>
-            <a href="/perfil#notificacoes" class="dropdown-item">Notificações</a>
             <a href="/perfil#guardados" class="dropdown-item">Guardados</a>
             <button id="logout-btn" class="dropdown-item logout-item">{SITE_CONFIG.ui.auth.sair}</button>
           </div>

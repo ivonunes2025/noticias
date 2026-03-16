@@ -24,7 +24,7 @@ export async function fetchStrapi<T = any>(
     if (!res.ok) return null;
     
     const json = await res.json();
-    return json.data as T;
+    return json as T;
   } catch (e) {
     console.error(`Erro ao buscar ${path} no Strapi:`, e);
     return null;

@@ -12,7 +12,7 @@ const [rawNews, rawCategorias] = await Promise.all([
     'populate[capa][fields][0]': 'url', 
     'populate[categorias][fields][0]': 'slug', 
     'populate[categorias][fields][1]': 'nome', 
-    'pagination[pageSize]': 100, 
+    'pagination[pageSize]': 48, 
     'sort': 'publishedAt:desc' 
   }).then(d => d || []),
   fetchStrapi('categorias', { 
@@ -165,6 +165,15 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
           <CardNoticia noticia={n} horizontal={true} />
         ))}
       </div>
+      <div class="ver-mais-container">
+        <a href="/noticias" class="btn-ver-mais">
+          Ver Todas as Notícias
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </a>
+      </div>
     </section>
   )}
 
@@ -313,6 +322,45 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
     .ultimas-grid {
       grid-template-columns: 1fr;
     }
+  }
+
+  .ver-mais-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 40px;
+    margin-bottom: 20px;
+  }
+
+  .btn-ver-mais {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 28px;
+    background: transparent;
+    border: 1px solid var(--cor-destaque);
+    color: var(--cor-destaque);
+    border-radius: 50px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .btn-ver-mais:hover {
+    background: var(--cor-destaque);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(200, 150, 62, 0.2);
+  }
+
+  .btn-ver-mais svg {
+    transition: transform 0.3s ease;
+  }
+
+  .btn-ver-mais:hover svg {
+    transform: translateX(4px);
   }
 
   /* ── Por Categoria ── */
