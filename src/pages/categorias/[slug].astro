@@ -3,7 +3,7 @@ export const prerender = false;
 import Layout from "../../layouts/Layout.astro";
 import Navbar from "../../components/Navbar.astro";
 import CardNoticia from "../../components/CardNoticia.astro";
-import { getRichText, getImageUrl, formatDate, formatTituloPt } from "../../utils/strapi";
+import { formatTituloPt } from "../../utils/strapi";
 
 const STRAPI = import.meta.env.STRAPI_URL;
 const { slug } = Astro.params;

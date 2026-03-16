@@ -1,15 +1,10 @@
 ---
 // Navbar do site
-// Props:
-//   isHome: boolean — se true, os links apontam para secções (#noticias, etc.)
-//                     se false, apontam para a página inicial (/)
-
 import { fetchStrapi, normalize } from "../utils/strapi";
 import { SITE_CONFIG } from "../utils/config";
+import "../styles/navbar.css";
 
 const { isHome = false } = Astro.props;
-
-const STRAPI = import.meta.env.STRAPI_URL;
 
 const [rawCategorias, rawPaginas, rawNoticias] = await Promise.all([
   fetchStrapi('categorias', { 'pagination[pageSize]': 20, 'sort': 'nome:asc' }).then(d => d || []),
@@ -17,31 +12,25 @@ const [rawCategorias, rawPaginas, rawNoticias] = await Promise.all([
   fetchStrapi('noticias', { 'fields': 'titulo,slug', 'pagination[pageSize]': 100, 'sort': 'publishedAt:desc' }).then(d => d || [])
 ]);
 
-// Normaliza os dados para facilitar o acesso
 const categorias = normalize(rawCategorias);
 const paginas = normalize(rawPaginas);
 const noticias = normalize(rawNoticias);
 
-// Prepara dados para a contagem de pesquisa silenciosa
 const searchItems = [
   ...categorias.map((c: any) => ({ label: c.nome ?? c.name })),
   ...paginas.map((p: any) => ({ label: p.titulo })),
   ...noticias.map((n: any) => ({ label: n.titulo }))
 ];
 
-// Estado de autenticação (Cookies)
 const user = Astro.cookies.get('user_name')?.value;
 ---
 
 <header class="navbar">
   <div class="navbar-inner">
-
-    <!-- Logo -->
     <a href="/" class="navbar-logo">
       {SITE_CONFIG.nome.split(' ')[0]}<span>{SITE_CONFIG.nome.split(' ').slice(1).join(' ')}</span>
     </a>
 
-    <!-- Links de navegação -->
     <nav class="navbar-nav">
       <a href={isHome ? "#noticias" : "/#noticias"} class="nav-link">{SITE_CONFIG.ui.home.destaque}</a>
       <a href={isHome ? "#ultimas" : "/#ultimas"} class="nav-link">{SITE_CONFIG.ui.home.ultimas}</a>
@@ -50,8 +39,6 @@ const user = Astro.cookies.get('user_name')?.value;
         <a href={`/${p.slug}`} class="nav-link">{p.titulo}</a>
       ))}
 
-
-      <!-- Dropdown Categorias -->
       {categorias.length > 0 && (
         <div class="nav-dropdown" id="cat-dropdown">
           <button class="nav-link nav-dropdown-btn" id="cat-btn" aria-haspopup="true" aria-expanded="false">
@@ -61,13 +48,11 @@ const user = Astro.cookies.get('user_name')?.value;
             </svg>
           </button>
           <div class="dropdown-menu" id="cat-menu" role="menu">
-            {categorias.map((cat: any) => {
-              const slug = cat.slug ?? cat.id;
-              const nome = cat.nome ?? cat.name ?? slug;
-              return (
-                <a href={`/categorias/${slug}`} class="dropdown-item" role="menuitem">{nome}</a>
-              );
-            })}
+            {categorias.map((cat: any) => (
+              <a href={`/categorias/${cat.slug ?? cat.id}`} class="dropdown-item" role="menuitem">
+                {cat.nome ?? cat.name ?? (cat.slug ?? cat.id)}
+              </a>
+            ))}
           </div>
         </div>
       )}
@@ -87,6 +72,7 @@ const user = Astro.cookies.get('user_name')?.value;
           <div class="dropdown-menu" id="user-menu" role="menu">
             <a href="/perfil#preferencias" class="dropdown-item">Preferências</a>
             <a href="/perfil#tema" class="dropdown-item">Tema</a>
+            <a href="/perfil#notificacoes" class="dropdown-item">Notificações</a>
             <a href="/perfil#guardados" class="dropdown-item">Guardados</a>
             <button id="logout-btn" class="dropdown-item logout-item">{SITE_CONFIG.ui.auth.sair}</button>
           </div>
@@ -99,38 +85,22 @@ const user = Astro.cookies.get('user_name')?.value;
       )}
     </nav>
 
-    <!-- Ações (Pesquisa, Tema e Burger) -->
     <div class="navbar-actions">
-      <!-- Pesquisa -->
       <div class="navbar-search" id="navbar-search-desktop">
-        <input
-          type="text"
-          id="pesquisa-input"
-          placeholder={SITE_CONFIG.ui.search.placeholder}
-          class="search-input"
-          autocomplete="off"
-        />
+        <input type="text" id="pesquisa-input" placeholder={SITE_CONFIG.ui.search.placeholder} class="search-input" autocomplete="off" />
         <span id="search-count-desktop" class="search-count"></span>
         <button id="search-btn-desktop" class="search-btn" aria-label="Pesquisar">
           <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"/>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
         </button>
       </div>
-    
-      
-      <!-- Menu mobile -->
       <button class="navbar-burger" id="burger-btn" aria-label="Menu">
-        <span></span>
-        <span></span>
-        <span></span>
+        <span></span><span></span><span></span>
       </button>
     </div>
-
   </div>
 
-  <!-- Nav mobile -->
   <div class="navbar-mobile" id="mobile-menu">
     <a href={isHome ? "#noticias" : "/#noticias"} class="nav-link-mobile">{SITE_CONFIG.ui.home.destaque}</a>
     <a href={isHome ? "#ultimas" : "/#ultimas"} class="nav-link-mobile">{SITE_CONFIG.ui.home.ultimas}</a>
@@ -139,7 +109,6 @@ const user = Astro.cookies.get('user_name')?.value;
       <a href={`/${p.slug}`} class="nav-link-mobile">{p.titulo}</a>
     ))}
 
-    <!-- Categorias mobile (acordeão) -->
     {categorias.length > 0 && (
       <div class="mobile-cat-section">
         <button class="nav-link-mobile mobile-cat-btn" id="mobile-cat-btn">
@@ -149,13 +118,11 @@ const user = Astro.cookies.get('user_name')?.value;
           </svg>
         </button>
         <div class="mobile-cat-list" id="mobile-cat-list">
-          {categorias.map((cat: any) => {
-            const slug = cat.slug ?? cat.id;
-            const nome = cat.nome ?? cat.name ?? slug;
-            return (
-              <a href={`/categorias/${slug}`} class="nav-link-mobile nav-link-mobile--sub">{nome}</a>
-            );
-          })}
+          {categorias.map((cat: any) => (
+            <a href={`/categorias/${cat.slug ?? cat.id}`} class="nav-link-mobile nav-link-mobile--sub">
+              {cat.nome ?? cat.name ?? (cat.slug ?? cat.id)}
+            </a>
+          ))}
         </div>
       </div>
     )}
@@ -174,9 +141,6 @@ const user = Astro.cookies.get('user_name')?.value;
             {SITE_CONFIG.ui.auth.perfil} ({user})
           </div>
         </a>
-        <a href="/perfil#preferencias" class="nav-link-mobile">Preferências</a>
-        <a href="/perfil#tema" class="nav-link-mobile">Tema</a>
-        <a href="/perfil#guardados" class="nav-link-mobile">Guardados</a>
         <button id="logout-btn-mobile" class="nav-link-mobile logout-item-mobile">{SITE_CONFIG.ui.auth.sair}</button>
       </>
     ) : (
@@ -187,731 +151,86 @@ const user = Astro.cookies.get('user_name')?.value;
     )}
     
     <div class="mobile-search" id="navbar-search-mobile">
-        <input
-          type="text"
-          id="pesquisa-input-mobile"
-          placeholder={SITE_CONFIG.ui.search.placeholder}
-          class="search-input"
-          autocomplete="off"
-        />
-        <span id="search-count-mobile" class="search-count"></span>
+      <input type="text" id="pesquisa-input-mobile" placeholder={SITE_CONFIG.ui.search.placeholder} class="search-input" autocomplete="off" />
+      <span id="search-count-mobile" class="search-count"></span>
       <button id="search-btn-mobile" class="search-btn" aria-label="Pesquisar">
         <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"/>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
       </button>
     </div>
   </div>
 </header>
 
-<style>
-  .navbar {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: rgba(10, 10, 10, 0.92);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  }
-
-  .navbar-inner {
-    max-width: var(--max-width);
-    margin: 0 auto;
-    padding: 0 24px;
-    height: 64px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-  }
-
-  @media (max-width: 768px) {
-    .navbar-inner {
-      height: 54px; /* Navbar mais baixa no mobile */
-    }
-  }
-
-  /* Logo */
-  .navbar-logo {
-    font-family: var(--fonte-titulo);
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--cor-principal);
-    text-decoration: none;
-    white-space: nowrap;
-    flex-shrink: 0;
-    letter-spacing: -0.02em;
-  }
-
-  .navbar-logo span {
-    color: var(--cor-destaque, #c8963e);
-  }
-
-  /* Nav links */
-  .navbar-nav {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-left: auto;
-    overflow: visible;
-    flex-shrink: 0;
-  }
-
-  .nav-link {
-    font-family: var(--fonte-corpo);
-    color: var(--cor-texto-suave, #888);
-    text-decoration: none;
-    font-size: 0.85rem;
-    font-weight: 500;
-    padding: 6px 12px;
-    border-radius: 8px;
-    white-space: nowrap;
-    transition: color 0.2s, background 0.2s;
-    text-transform: capitalize;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .nav-link:hover,
-  .nav-link.ativo {
-    color: var(--cor-principal);
-    background: var(--cor-destaque-claro);
-  }
-
-  /* Auth Buttons */
-  .nav-auth {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-left: 8px;
-  }
-
-  .nav-link--login {
-    color: var(--cor-principal) !important;
-    opacity: 0.8;
-  }
-
-  .nav-link--login:hover {
-    opacity: 1;
-    background: transparent !important;
-    text-decoration: underline;
-  }
-
-  .nav-btn {
-    background: var(--cor-destaque) !important;
-    color: var(--cor-fundo) !important;
-    padding: 8px 18px !important;
-    font-weight: 600 !important;
-    transition: transform 0.2s, filter 0.2s !important;
-  }
-
-  .nav-btn:hover {
-    transform: translateY(-1px);
-    filter: brightness(1.1);
-    background: var(--cor-destaque) !important;
-  }
-
-  /* Perfil na Navbar */
-  .user-profile-btn {
-    padding-left: 6px !important;
-  }
-
-  .nav-profile-photo {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--cor-destaque-claro);
-    border: 1.5px solid var(--cor-destaque);
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .nav-profile-photo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .nav-profile-photo--mobile {
-    width: 32px;
-    height: 32px;
-  }
-
-  .nav-user-name {
-    max-width: 100px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .perfil-link {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    border: 1px solid var(--cor-borda, rgba(255,255,255,0.1));
-    margin-left: 8px;
-  }
-
-  .perfil-link:hover {
-    border-color: var(--cor-destaque);
-  }
-
-  .profile-icon {
-    color: var(--cor-destaque);
-  }
-
-  /* Ações (Tema e Burger) */
-  .navbar-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-shrink: 0;
-  }
-
-  /* Theme Toggle (Simples e Pequeno) */
-  .theme-toggle-btn {
-    background: var(--cor-destaque-claro);
-    border: 1px solid var(--cor-borda);
-    color: var(--cor-principal);
-    cursor: pointer;
-    width: 34px; /* Tamanho reduzido */
-    height: 34px; /* Tamanho reduzido */
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    padding: 0;
-  }
-
-  .theme-toggle-btn:hover {
-    background: rgba(200, 150, 62, 0.2);
-    transform: rotate(15deg);
-    border-color: var(--cor-destaque);
-  }
-
-  .sun-icon { display: block; }
-  .moon-icon { display: none; }
-
-  :global([data-theme="dark"]) .sun-icon { display: none; }
-  :global([data-theme="dark"]) .moon-icon { display: block; }
-
-  /* Dropdown */
-  .nav-dropdown {
-    position: relative;
-    flex-shrink: 0;
-  }
-
-  .nav-dropdown-btn {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-family: inherit;
-  }
-
-  .dropdown-arrow {
-    transition: transform 0.25s ease;
-    flex-shrink: 0;
-  }
-
-  .nav-dropdown.aberto .dropdown-arrow {
-    transform: rotate(180deg);
-  }
-
-  .dropdown-menu {
-    position: absolute;
-    top: calc(100% + 10px);
-    right: 0;
-    min-width: 200px;
-    max-height: 320px;
-    overflow-y: auto;
-    background: rgba(18, 18, 18, 0.98);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 6px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(-6px);
-    transition: opacity 0.2s ease, transform 0.2s ease;
-  }
-
-  /* Scrollbar discreta */
-  .dropdown-menu::-webkit-scrollbar { width: 4px; }
-  .dropdown-menu::-webkit-scrollbar-track { background: transparent; }
-  .dropdown-menu::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
-
-  .nav-dropdown.aberto .dropdown-menu {
-    opacity: 1;
-    pointer-events: all;
-    transform: translateY(0);
-  }
-
-  .dropdown-item {
-    color: var(--cor-texto-suave, #888);
-    text-decoration: none;
-    font-size: 0.85rem;
-    font-weight: 500;
-    padding: 8px 12px;
-    border-radius: 8px;
-    white-space: nowrap;
-    transition: color 0.2s, background 0.2s;
-    text-transform: capitalize;
-  }
-
-  .dropdown-item:hover {
-    color: var(--cor-principal);
-    background: rgba(255, 255, 255, 0.07);
-  }
-
-  .logout-item {
-    margin-top: 4px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    padding-top: 10px;
-    color: #ff5252; /* Vermelho suave para indicar ação de saída */
-    background: transparent;
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
-    width: 100%;
-    text-align: left;
-    cursor: pointer;
-    font-family: inherit;
-  }
-
-  .logout-item:hover {
-    background: rgba(255, 82, 82, 0.1) !important;
-    color: #ff5252 !important;
-  }
-
-  /* Removida a exceção do tema P&B para manter o vermelho consistente */
-  
-  /* Pesquisa */
-  .navbar-search {
-    position: relative;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-  }
-
-  .search-input {
-    font-family: var(--fonte-corpo);
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 7px 60px 7px 14px; /* Aumentado de 36px para 60px para dar espaço ao contador e lupa */
-    color: var(--cor-principal);
-    font-size: 0.83rem;
-    width: 180px;
-    outline: none;
-    transition: border-color 0.2s, background 0.2s, width 0.3s;
-  }
-
-  .search-input::placeholder {
-    color: var(--cor-texto-suave, #888);
-  }
-
-  .search-input:focus {
-    border-color: var(--cor-destaque, #c8963e);
-    background: rgba(255, 255, 255, 0.08);
-    width: 240px; /* Aumentado ligeiramente para acomodar o contador */
-  }
-
-  .search-count {
-    position: absolute;
-    right: 38px; /* Posicionado entre o texto e a lupa */
-    font-size: 0.75rem;
-    color: var(--cor-destaque);
-    font-weight: 700;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    background: rgba(0, 0, 0, 0.3);
-    padding: 2px 6px;
-    border-radius: 4px;
-  }
-
-  .search-count.active {
-    opacity: 1;
-  }
-
-  .search-btn {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--cor-texto-suave, #888);
-    transition: color 0.2s;
-  }
-
-  .search-btn:hover {
-    color: var(--cor-destaque);
-  }
-
-  .search-icon {
-    pointer-events: none;
-  }
-
-  /* Burger */
-  .navbar-burger {
-    display: none;
-    flex-direction: column;
-    gap: 5px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px;
-    flex-shrink: 0;
-  }
-
-  .navbar-burger span {
-    display: block;
-    width: 22px;
-    height: 2px;
-    background: var(--cor-principal);
-    border-radius: 2px;
-    transition: transform 0.3s, opacity 0.3s;
-  }
-
-  .navbar-burger.aberto span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-  .navbar-burger.aberto span:nth-child(2) { opacity: 0; }
-  .navbar-burger.aberto span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-
-  /* Mobile menu */
-  .navbar-mobile {
-    display: none;
-    flex-direction: column;
-    padding: 12px 24px 20px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    gap: 4px;
-  }
-
-  .navbar-mobile.aberto {
-    display: flex;
-  }
-
-  .nav-link-mobile {
-    color: var(--cor-texto-suave, #888);
-    text-decoration: none;
-    font-size: 0.92rem;
-    font-weight: 500;
-    padding: 10px 12px;
-    border-radius: 8px;
-    transition: color 0.2s, background 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    text-transform: capitalize;
-  }
-   
-  .nav-link-mobile:hover,
-  .nav-link-mobile.ativo {
-    color: var(--cor-principal);
-    background: rgba(255, 255, 255, 0.06);
-  }
-
-  .nav-link-mobile.ativo {
-    border-left: 3px solid var(--cor-destaque);
-  }
-
-  /* Auth Mobile */
-  .nav-auth-mobile {
-    display: flex;
-    gap: 8px;
-    padding: 10px 12px;
-    margin-top: 4px;
-  }
-
-  .nav-auth-mobile .nav-link-mobile {
-    flex: 1;
-    justify-content: center;
-    font-size: 0.85rem;
-    padding: 12px;
-  }
-
-  .nav-btn-mobile {
-    background: var(--cor-destaque) !important;
-    color: var(--cor-fundo) !important;
-    font-weight: 700;
-  }
-
-  /* Categorias mobile */
-  .mobile-cat-section {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .mobile-cat-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-family: inherit;
-    width: 100%;
-    text-align: left;
-  }
-
-  .mobile-cat-list {
-    display: none;
-    flex-direction: column;
-    gap: 2px;
-    padding-left: 12px;
-    border-left: 2px solid rgba(200, 150, 62, 0.3);
-    margin-left: 12px;
-    margin-bottom: 4px;
-  }
-
-  .mobile-cat-list.aberto {
-    display: flex;
-  }
-
-  .mobile-cat-btn.aberto .dropdown-arrow {
-    transform: rotate(180deg);
-  }
-
-  .nav-link-mobile--sub {
-    font-size: 0.87rem;
-    padding: 8px 10px;
-    justify-content: flex-start;
-  }
-
-  #logout-btn-mobile {
-    margin-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
-    padding-top: 16px !important;
-    color: #ff5252 !important;
-  }
-
-  .mobile-search {
-    position: relative;
-    margin-top: 8px;
-  }
-
-  .mobile-search .search-results-dropdown {
-    width: 100%;
-    left: 0;
-    right: 0;
-  }
-
-  .mobile-search .search-input {
-    width: 100%;
-  }
-
-  .mobile-search .search-input:focus {
-    width: 100%;
-  }
-
-  /* Responsivo */
-  @media (max-width: 768px) {
-    .navbar-nav,
-    .navbar-search {
-      display: none;
-    }
-
-    .navbar-burger {
-      display: flex;
-    }
-
-    .navbar-actions {
-      margin-left: auto;
-      gap: 12px;
-    }
-  }
-</style>
-
 <script>
-  // Burger menu toggle
+  // Menu Burger
   const burger = document.getElementById("burger-btn");
   const mobileMenu = document.getElementById("mobile-menu");
-
   burger?.addEventListener("click", () => {
     burger.classList.toggle("aberto");
     mobileMenu?.classList.toggle("aberto");
   });
 
-  // Fechar menu ao clicar num link mobile
-  document.querySelectorAll(".nav-link-mobile").forEach((link) => {
-    link.addEventListener("click", () => {
-      if (!link.classList.contains("mobile-cat-btn")) {
-        burger?.classList.remove("aberto");
-        mobileMenu?.classList.remove("aberto");
-      }
-    });
-  });
-
-  // Dropdown desktop — toggle ao clicar
-  const catBtn = document.getElementById("cat-btn");
-  const catDropdown = document.getElementById("cat-dropdown");
-  const userBtn = document.getElementById("user-btn");
-  const userDropdown = document.getElementById("user-dropdown");
-
-  function toggleDropdown(btn: HTMLElement | null, dropdown: HTMLElement | null) {
-    if (!btn || !dropdown) return;
-    btn.addEventListener("click", (e) => {
+  // Dropdowns
+  function setupDropdown(btnId: string, menuId: string, dropdownId: string) {
+    const btn = document.getElementById(btnId);
+    const menu = document.getElementById(menuId);
+    const dropdown = document.getElementById(dropdownId);
+    btn?.addEventListener("click", (e) => {
       e.stopPropagation();
-      dropdown.classList.toggle("aberto");
-      btn.setAttribute("aria-expanded", String(dropdown.classList.contains("aberto")));
-      
-      // Fechar o outro dropdown se estiver aberto
-      const otherDropdown = dropdown === catDropdown ? userDropdown : catDropdown;
-      const otherBtn = dropdown === catDropdown ? userBtn : catBtn;
-      otherDropdown?.classList.remove("aberto");
-      otherBtn?.setAttribute("aria-expanded", "false");
+      dropdown?.classList.toggle("aberto");
+      btn.setAttribute("aria-expanded", String(dropdown?.classList.contains("aberto")));
     });
   }
+  setupDropdown("cat-btn", "cat-menu", "cat-dropdown");
+  setupDropdown("user-btn", "user-menu", "user-dropdown");
 
-  toggleDropdown(catBtn, catDropdown);
-  toggleDropdown(userBtn, userDropdown);
+  // Logout
+  const logoutBtns = [document.getElementById("logout-btn"), document.getElementById("logout-btn-mobile")];
+  logoutBtns.forEach(btn => btn?.addEventListener("click", async () => {
+    const res = await fetch("/api/auth/logout", { method: "POST" });
+    if (res.ok) window.location.href = "/";
+  }));
 
-  // Lógica de Logout
-  const logoutBtn = document.getElementById("logout-btn");
-  const logoutBtnMobile = document.getElementById("logout-btn-mobile");
-
-  [logoutBtn, logoutBtnMobile].forEach(btn => {
-    btn?.addEventListener("click", async () => {
-      const res = await fetch("/api/auth/logout", { method: "POST" });
-      if (res.ok) window.location.href = "/";
-    });
+  // Fechar ao clicar fora
+  document.addEventListener("click", () => {
+    document.querySelectorAll(".nav-dropdown.aberto").forEach(d => d.classList.remove("aberto"));
   });
 
-  // Fechar dropdown ao clicar fora
-  document.addEventListener("click", (e) => {
-    if (!catDropdown?.contains(e.target as Node) && !userDropdown?.contains(e.target as Node)) {
-      catDropdown?.classList.remove("aberto");
-      catBtn?.setAttribute("aria-expanded", "false");
-      userDropdown?.classList.remove("aberto");
-      userBtn?.setAttribute("aria-expanded", "false");
-    }
-  });
-
-  // Fechar dropdown ao pressionar Escape
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      catDropdown?.classList.remove("aberto");
-      catBtn?.setAttribute("aria-expanded", "false");
-      userDropdown?.classList.remove("aberto");
-      userBtn?.setAttribute("aria-expanded", "false");
-    }
-  });
-
-  // Categorias mobile — acordeão
-  const mobileCatBtn = document.getElementById("mobile-cat-btn");
-  const mobileCatList = document.getElementById("mobile-cat-list");
-
-  mobileCatBtn?.addEventListener("click", () => {
-    mobileCatBtn.classList.toggle("aberto");
-    mobileCatList?.classList.toggle("aberto");
+  // Mobile Accordion
+  document.getElementById("mobile-cat-btn")?.addEventListener("click", (e) => {
+    const btn = e.currentTarget as HTMLElement;
+    btn.classList.toggle("aberto");
+    document.getElementById("mobile-cat-list")?.classList.toggle("aberto");
   });
 </script>
 
 <script define:vars={{ searchItems }}>
-  // Pesquisa Direta com Contador Silencioso
-  function normalizar(str) {
-    return (str || "")
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-  }
-
   function setupSearch(inputId, buttonId, countId) {
     const input = document.getElementById(inputId);
-    const button = document.getElementById(buttonId);
     const countEl = document.getElementById(countId);
-    if (!input || !button || !countEl) return;
+    if (!input || !countEl) return;
 
-    const performSearch = () => {
-      const q = input.value.trim();
-      if (q) {
-        window.location.href = `/pesquisa?q=${encodeURIComponent(q)}`;
-      }
-    };
-
-    // Atualiza contador ao escrever
     input.addEventListener("input", () => {
-      const q = normalizar(input.value.trim());
+      const q = input.value.trim().toLowerCase();
       if (q.length < 2) {
         countEl.classList.remove("active");
-        countEl.textContent = "";
         return;
       }
-
-      const total = searchItems.filter(item => 
-        normalizar(item.label).includes(q)
-      ).length;
-
-      if (total > 0) {
-        countEl.textContent = total;
-        countEl.classList.add("active");
-      } else {
-        countEl.textContent = "0";
-        countEl.classList.add("active");
-      }
+      const total = searchItems.filter(i => i.label.toLowerCase().includes(q)).length;
+      countEl.textContent = total;
+      countEl.classList.add("active");
     });
 
-    button.addEventListener('click', performSearch);
-
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        performSearch();
-      }
-    });
+    const go = () => { if (input.value.trim()) window.location.href = `/pesquisa?q=${encodeURIComponent(input.value.trim())}`; };
+    document.getElementById(buttonId)?.addEventListener('click', go);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
   }
-
   setupSearch("pesquisa-input", "search-btn-desktop", "search-count-desktop");
   setupSearch("pesquisa-input-mobile", "search-btn-mobile", "search-count-mobile");
 
-  // Atualizar fotos de perfil na Navbar (Vinculada ao Utilizador)
-  const getCookie = (name) => {
-    const nameEQ = name + "=";
-    const ca = document.cookie.split(";");
-    for (let i = 0; i < ca.length; i++) {
-      let c = ca[i];
-      while (c.charAt(0) === " ") c = c.substring(1, c.length);
-      if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
-    }
-    return null;
-  };
-
-  const currentUser = getCookie('user_name');
-  const photoKey = currentUser ? `profile-photo-${currentUser}` : 'profile-photo-guest';
-  const savedPhoto = localStorage.getItem(photoKey);
-
-  if (savedPhoto) {
-    document.querySelectorAll('.nav-profile-photo').forEach(container => {
-      container.innerHTML = `<img src="${savedPhoto}" alt="Foto de Perfil" />`;
-    });
-  }
-
-  // Lógica de Toggle de Tema (Dourado vs P&B)
-  const themeToggle = document.getElementById('theme-toggle');
-  
-  themeToggle?.addEventListener('click', () => {
-    const currentTheme = document.documentElement.getAttribute('data-theme') || 'default';
-    const newTheme = currentTheme === 'dark' ? 'default' : 'dark';
-    
-    if (newTheme === 'default') {
-      document.documentElement.removeAttribute('data-theme');
-    } else {
-      document.documentElement.setAttribute('data-theme', newTheme);
-    }
-    localStorage.setItem('theme', newTheme);
-  });
+  // Foto Perfil
+  const user = document.cookie.split('; ').find(row => row.startsWith('user_name='))?.split('=')[1];
+  const photo = localStorage.getItem(user ? `profile-photo-${user}` : 'profile-photo-guest');
+  if (photo) document.querySelectorAll('.nav-profile-photo').forEach(c => c.innerHTML = `<img src="${photo}" alt="Perfil" />`);
 </script>

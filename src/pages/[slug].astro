@@ -16,13 +16,6 @@ const res = await fetch(`${STRAPI}/api/paginas?filters[slug][$eq]=${slug}&popula
 const rawData = res.data?.[0];
 const pagina = rawData?.attributes ?? rawData;
 
-// DEBUG: Verificar estrutura da página
-console.log('--- DEBUG PÁGINA COMPLETA ---');
-console.log('Campos encontrados:', Object.keys(pagina || {}));
-console.log('Conteúdo:', JSON.stringify(pagina?.conteudo)?.slice(0, 100));
-console.log('Capa:', JSON.stringify(pagina?.capa));
-// ------------------------------------
-
 // Se não houver página, Astro.redirect ou 404
 if (!pagina) {
   return Astro.redirect('/404');

@@ -1,0 +1,49 @@
+---
+// Autor.astro
+// Componente para exibir as informações do autor de uma notícia
+import { getImageUrl } from "../utils/strapi";
+import "../styles/autor.css";
+
+interface Props {
+  autor: {
+    nome: string;
+    foto?: any;
+    cargo?: string; // Campo opcional para o futuro
+  };
+  variant?: "small" | "large";
+  showBorder?: boolean;
+}
+
+const { autor: rawAutor, variant = "small", showBorder = true } = Astro.props;
+
+if (!rawAutor) return null;
+
+// Normaliza o autor para respeitar a Law of Demeter
+const autor = normalize(rawAutor);
+const fotoUrl = getImageUrl(autor.foto);
+---
+
+<div class={`autor-info autor-info--${variant} ${showBorder ? 'has-border' : ''}`}>
+  <div class="autor-foto-wrapper">
+    {fotoUrl ? (
+      <img 
+        src={fotoUrl} 
+        alt={autor.nome} 
+        class="autor-foto-img"
+        loading="lazy"
+      />
+    ) : (
+      <div class="autor-foto-placeholder">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+      </div>
+    )}
+  </div>
+  <div class="autor-detalhes">
+    <span class="autor-nome">{autor.nome}</span>
+    {variant === "large" && autor.cargo && (
+      <span class="autor-cargo">{autor.cargo}</span>
+    )}
+  </div>
+</div>

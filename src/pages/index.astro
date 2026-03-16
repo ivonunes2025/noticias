@@ -3,10 +3,8 @@ import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
 import CardNoticia from "../components/CardNoticia.astro";
 import SectionHeader from "../components/SectionHeader.astro";
-import { getRichText, getImageUrl, formatDate, checkAuth, fetchStrapi } from "../utils/strapi";
+import { getImageUrl, checkAuth, fetchStrapi } from "../utils/strapi";
 import { SITE_CONFIG } from "../utils/config";
-
-const STRAPI = import.meta.env.STRAPI_URL;
 
 // Busca notícias e categorias em paralelo usando o novo utilitário dinâmico
 const [news, categorias] = await Promise.all([

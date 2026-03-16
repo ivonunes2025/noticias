@@ -1,0 +1,90 @@
+.error-container {
+  min-height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  animation: fadeIn 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.error-content {
+  max-width: 500px;
+  width: 100%;
+}
+
+.error-code {
+  font-family: var(--fonte-titulo);
+  font-size: clamp(6rem, 15vw, 10rem);
+  line-height: 1;
+  color: var(--cor-destaque);
+  margin-bottom: 0;
+  opacity: 0.8;
+  font-weight: 700;
+}
+
+.error-divider {
+  width: 60px;
+  height: 4px;
+  background: var(--cor-destaque);
+  margin: 0 auto 32px;
+  border-radius: 2px;
+}
+
+.error-title {
+  font-size: 2rem;
+  margin-bottom: 16px;
+  color: var(--cor-principal);
+  border: none;
+  padding: 0;
+}
+
+/* Remove a linha decorativa global do h2 nesta página específica */
+.error-title::after {
+  display: none;
+}
+
+.error-text {
+  font-size: 1.1rem;
+  color: var(--cor-texto-suave);
+  margin-bottom: 40px;
+  line-height: 1.6;
+}
+
+.error-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--cor-destaque);
+  color: var(--cor-fundo);
+  padding: 14px 32px;
+  border-radius: var(--raio);
+  text-decoration: none;
+  font-weight: 700;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(200, 150, 62, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(200, 150, 62, 0.4);
+  filter: brightness(1.1);
+}
+
+.btn-primary svg {
+  transition: transform 0.3s ease;
+}
+
+.btn-primary:hover svg {
+  transform: scale(1.1);
+}

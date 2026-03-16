@@ -31,7 +31,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     });
 
     // Opcional: guardar dados básicos do user num cookie não-httpOnly para UI
-    cookies.set('user_name', data.user.username, {
+    // Usamos o campo 'nome' (se existir) ou o username (que agora é o email)
+    const displayName = data.user.nome || data.user.username;
+    
+    cookies.set('user_name', displayName, {
       path: '/',
       httpOnly: false,
       secure: true,

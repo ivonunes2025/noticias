@@ -1,6 +1,7 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
+import SectionHeader from "../components/SectionHeader.astro";
 import { getCategorias } from "../utils/strapi";
 
 const user = Astro.cookies.get('user_name')?.value;
@@ -56,39 +57,563 @@ const categorias = await getCategorias();
         </div>
       </section>
 
-    <section class="tema-selection" id="tema">
-      <h2>Tema Visual</h2>
-      <p class="instruction">Escolha a aparência que mais lhe agrada para navegar no site:</p>
-      
-      <div class="temas-grid">
-        <button class="tema-card" data-theme="default">
-          <div class="tema-preview theme-default"></div>
-          <span>Dourado (Padrão)</span>
-        </button>
-        <button class="tema-card" data-theme="dark">
+      <section class="tema-selection" id="tema">
+        <h2>Tema Visual</h2>
+        <p class="instruction">Escolha a aparência que mais lhe agrada para navegar no site:</p>
+        
+        <div class="temas-grid">
+          <button class="tema-card" data-theme="default">
+            <div class="tema-preview theme-default"></div>
+            <span>Dourado (Padrão)</span>
+          </button>
+          <button class="tema-card" data-theme="dark">
             <div class="tema-preview theme-dark"></div>
             <span>Minimalista (P&B)</span>
           </button>
         </div>
-    </section>
+      </section>
 
-    <section class="perfil-section" id="guardados">
-      <div class="section-header">
-        <div class="section-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-          </svg>
+      <section class="perfil-section" id="guardados">
+        <SectionHeader title="Ler Depois" />
+        <p class="instruction">Notícias que guardou para ler com mais calma.</p>
+        
+        <div class="carrossel">
+          <button type="button" class="carrossel-arrow carrossel-prev" aria-label="Anterior">‹</button>
+          <button type="button" class="carrossel-arrow carrossel-next" aria-label="Próximo">›</button>
+          <div id="saved-news-container" class="carrossel-track">
+            <!-- Preenchido via JavaScript -->
+          </div>
         </div>
-        <h2>Ler Depois</h2>
-      </div>
-      <p class="instruction">Notícias que guardou para ler com mais calma.</p>
-      
-      <div id="saved-news-container" class="saved-news-grid">
-        <!-- Preenchido via JavaScript -->
-      </div>
-    </section>
-  </main>
+      </section>
+    </div>
+  </div>
 </Layout>
+
+<style>
+  .perfil-container {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 100px 24px;
+    animation: fadeIn 0.8s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .perfil-header {
+    text-align: center;
+    margin-bottom: 60px;
+  }
+
+  .profile-photo-wrapper {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 24px;
+  }
+
+  .perfil-icon-large {
+    width: 100%;
+    height: 100%;
+    background: var(--cor-fundo-card);
+    border: 2px solid var(--cor-destaque);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cor-destaque);
+    overflow: hidden;
+    box-shadow: var(--sombra);
+  }
+
+  .perfil-icon-large img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .photo-edit-btn {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: var(--cor-destaque);
+    color: var(--cor-fundo);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 3px solid var(--cor-fundo);
+    transition: all 0.3s ease;
+  }
+
+  .photo-edit-btn:hover {
+    transform: scale(1.1);
+    filter: brightness(1.1);
+  }
+
+  .perfil-header h1 {
+    font-family: var(--fonte-titulo);
+    font-size: 2.5rem;
+    color: var(--cor-principal);
+    margin-bottom: 8px;
+  }
+
+  .perfil-header p {
+    color: var(--cor-texto-suave);
+    font-size: 1.1rem;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  .perfil-content {
+    display: flex;
+    flex-direction: column;
+    gap: 60px;
+  }
+
+  section h2 {
+    font-family: var(--fonte-titulo);
+    font-size: 1.8rem;
+    margin-bottom: 12px;
+    color: var(--cor-principal);
+  }
+
+  .instruction {
+    color: var(--cor-texto-suave);
+    margin-bottom: 24px;
+  }
+
+  /* Categorias Grid */
+  .categorias-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .categoria-chip {
+    cursor: pointer;
+  }
+
+  .categoria-chip input {
+    display: none;
+  }
+
+  .chip-text {
+    display: inline-block;
+    padding: 10px 20px;
+    background: var(--cor-fundo-card);
+    border: 1px solid var(--cor-borda);
+    border-radius: 50px;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    color: var(--cor-texto-suave);
+  }
+
+  .categoria-chip input:checked + .chip-text {
+    background: var(--cor-destaque-claro);
+    border-color: var(--cor-destaque);
+    color: var(--cor-destaque);
+    box-shadow: 0 4px 12px rgba(200, 150, 62, 0.2);
+  }
+
+  /* Save Actions */
+  .save-actions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .save-button {
+    background: var(--cor-destaque);
+    color: var(--cor-fundo);
+    border: none;
+    padding: 12px 32px;
+    border-radius: var(--raio);
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .save-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(200, 150, 62, 0.3);
+  }
+
+  .status-msg {
+    font-size: 0.9rem;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .status-msg.success {
+    opacity: 1;
+    color: #4caf50;
+  }
+
+  /* Temas Grid */
+  .temas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+  }
+
+  .tema-card {
+    background: var(--cor-fundo-card);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio);
+    padding: 16px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s ease;
+    color: var(--cor-principal);
+  }
+
+  .tema-card:hover {
+    border-color: var(--cor-destaque);
+  }
+
+  .tema-card.active {
+    border-color: var(--cor-destaque);
+    background: var(--cor-destaque-claro);
+  }
+
+  .tema-preview {
+    width: 100%;
+    height: 80px;
+    border-radius: 8px;
+    border: 1px solid var(--cor-borda);
+  }
+
+  .theme-default {
+    background: linear-gradient(135deg, #0a0a0a 0%, #c8963e 100%);
+  }
+
+  .theme-dark {
+    background: linear-gradient(135deg, #000000 0%, #ffffff 100%);
+  }
+
+  /* Notificações Styles */
+  .notif-options {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: var(--cor-fundo-card);
+    border-radius: var(--raio);
+    padding: 24px;
+    border: 1px solid var(--cor-borda);
+  }
+
+  .notif-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--cor-borda);
+  }
+
+  .notif-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .notif-info h3 {
+    font-size: 1.1rem;
+    color: var(--cor-principal);
+    margin-bottom: 4px;
+  }
+
+  .notif-info p {
+    font-size: 0.9rem;
+    color: var(--cor-texto-suave);
+    margin: 0;
+  }
+
+  .btn-toggle {
+    background: var(--cor-fundo);
+    border: 1px solid var(--cor-destaque);
+    color: var(--cor-destaque);
+    padding: 8px 20px;
+    border-radius: 50px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .btn-toggle:hover {
+    background: var(--cor-destaque);
+    color: var(--cor-fundo);
+  }
+
+  .btn-toggle.active {
+    background: var(--cor-destaque);
+    color: var(--cor-fundo);
+  }
+
+  /* Switch Toggle */
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--cor-borda);
+    transition: .4s;
+  }
+
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+  }
+
+  input:checked + .slider {
+    background-color: var(--cor-destaque);
+  }
+
+  input:checked + .slider:before {
+    transform: translateX(26px);
+  }
+
+  .slider.round {
+    border-radius: 34px;
+  }
+
+  .slider.round:before {
+    border-radius: 50%;
+  }
+
+  /* ── CARROSSEL DE GUARDADOS ── */
+  .perfil-section .carrossel {
+    padding: 0 48px;
+    margin: 0 -24px;
+    width: calc(100% + 48px);
+  }
+
+  .perfil-section .carrossel-slide {
+    flex: 0 0 85%;
+    min-width: 0;
+  }
+
+  @media (min-width: 600px) {
+    .perfil-section .carrossel-slide { flex: 0 0 50%; }
+  }
+
+  @media (min-width: 900px) {
+    .perfil-section .carrossel-slide { flex: 0 0 32%; }
+  }
+
+  /* Estilos para os cartões injetados via JS (imitando CardNoticia.astro) */
+  :global(.perfil-section .noticia-card) {
+    text-decoration: none !important;
+    color: inherit !important;
+    display: flex;
+    flex-direction: column;
+    background: var(--cor-fundo-card);
+    border-radius: var(--raio);
+    border: 1px solid var(--cor-borda);
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    height: 100%;
+    min-height: 380px;
+  }
+
+  :global(.perfil-section .noticia-card:hover) {
+    transform: translateY(-6px);
+    box-shadow: var(--sombra);
+    border-color: var(--cor-destaque);
+  }
+
+  :global(.perfil-section .noticia-img-wrapper) {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: var(--cor-borda);
+  }
+
+  :global(.perfil-section .noticia-img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s ease;
+  }
+
+  :global(.perfil-section .noticia-card:hover .noticia-img) {
+    transform: scale(1.05);
+  }
+
+  :global(.perfil-section .noticia-corpo) {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+  }
+
+  :global(.perfil-section .noticia-data) {
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--cor-destaque);
+    margin-bottom: 8px;
+  }
+
+  :global(.perfil-section .noticia-titulo) {
+    font-size: 1.1rem;
+    line-height: 1.4;
+    color: var(--cor-principal);
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  :global(.perfil-section .remove-saved-btn) {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(10, 10, 10, 0.6);
+    backdrop-filter: blur(12px);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.3s ease;
+  }
+
+  :global(.perfil-section .remove-saved-btn:hover) {
+    background: #ff4b4b;
+    border-color: #ff4b4b;
+    transform: scale(1.1) rotate(5deg);
+  }
+
+  /* Estilos do Modal de Confirmação */
+  :global(.confirm-modal-overlay) {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: modalFadeIn 0.3s ease-out;
+  }
+
+  :global(.confirm-modal) {
+    background: var(--cor-fundo-card);
+    border: 1px solid var(--cor-destaque);
+    padding: 32px;
+    border-radius: var(--raio);
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  }
+
+  :global(.confirm-modal p) {
+    color: var(--cor-principal);
+    font-size: 1.2rem;
+    margin-bottom: 24px;
+    font-family: var(--fonte-titulo);
+  }
+
+  :global(.confirm-modal-btns) {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+  }
+
+  :global(.confirm-btn) {
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 100px;
+    font-size: 0.95rem;
+  }
+
+  :global(.confirm-btn.yes) {
+    background: var(--cor-destaque);
+    color: var(--cor-fundo);
+    border: none;
+  }
+
+  :global(.confirm-btn.yes:hover) {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+  }
+
+  :global(.confirm-btn.no) {
+    background: transparent;
+    color: var(--cor-texto-suave);
+    border: 1px solid var(--cor-borda);
+  }
+
+  :global(.confirm-btn.no:hover) {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--cor-principal);
+  }
+
+  @keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .empty-saved {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px;
+    background: var(--cor-fundo-card);
+    border: 2px dashed var(--cor-borda);
+    border-radius: var(--raio);
+    color: var(--cor-texto-suave);
+    width: 100%;
+  }
+
+  .empty-saved-icon {
+    margin-bottom: 16px;
+    opacity: 0.3;
+  }
+</style>
 
 <script>
   // Funções de Cookies
@@ -221,29 +746,34 @@ const categorias = await getCategorias();
               <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
             </svg>
           </div>
-          <p>Ainda não guardou nenhuma notícia.</p>
+          <p>Ainda não guardou nenhuma notícia para ler depois.</p>
         </div>
       `;
+      const carrossel = container.closest('.carrossel');
+      if (carrossel) {
+        const arrows = carrossel.querySelectorAll('.carrossel-arrow');
+        arrows.forEach((a: any) => a.style.display = 'none');
+      }
       return;
     }
 
     container.innerHTML = news.map((n: any) => `
-      <div class="saved-item-card">
-        <div class="saved-item-content">
-          <div class="saved-item-info">
-            <span class="saved-item-date">${n.data}</span>
-            <h3 class="saved-item-title" onclick="window.location.href='/noticias/${n.id}'">${n.titulo}</h3>
+      <div class="carrossel-slide">
+        <div class="noticia-card" data-id="${n.id}">
+          <div class="noticia-img-wrapper">
+            <img src="${n.imagem}" alt="${n.titulo}" class="noticia-img" onclick="window.location.href='/noticias/${n.id}'" style="cursor: pointer;" />
+            <button class="remove-saved-btn" data-id="${n.id}" title="Remover dos guardados">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            </button>
           </div>
-          <div class="saved-item-image">
-            <img src="${n.imagem}" alt="${n.titulo}" onclick="window.location.href='/noticias/${n.id}'" style="cursor: pointer;" />
+          <div class="noticia-corpo" onclick="window.location.href='/noticias/${n.id}'" style="cursor: pointer;">
+            <span class="noticia-data">${n.data}</span>
+            <h3 class="noticia-titulo">${n.titulo}</h3>
           </div>
         </div>
-        <button class="remove-saved-btn" data-id="${n.id}" title="Remover">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
       </div>
     `).join('');
 
@@ -251,19 +781,90 @@ const categorias = await getCategorias();
     container.querySelectorAll('.remove-saved-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const id = btn.getAttribute('data-id');
-        let saved = JSON.parse(localStorage.getItem('ler-depois') || '[]');
-        saved = saved.filter((n: any) => n.id !== id);
-        localStorage.setItem('ler-depois', JSON.stringify(saved));
+        if (!id) return;
         
-        // Dispara evento para atualizar outros componentes (como os ícones nos cards)
-        window.dispatchEvent(new CustomEvent('bookmarks-updated'));
-        // Atualiza a própria lista
-        updateSavedNews();
+        // Criar Modal de Confirmação
+        const modal = document.createElement('div');
+        modal.className = 'confirm-modal-overlay';
+        modal.innerHTML = `
+          <div class="confirm-modal">
+            <p>Deseja remover dos guardados?</p>
+            <div class="confirm-modal-btns">
+              <button class="confirm-btn yes">Sim</button>
+              <button class="confirm-btn no">Não</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Lógica dos botões do modal
+        modal.querySelector('.no')?.addEventListener('click', () => {
+          modal.remove();
+        });
+
+        modal.querySelector('.yes')?.addEventListener('click', () => {
+          let saved = JSON.parse(localStorage.getItem('ler-depois') || '[]');
+          saved = saved.filter((n: any) => n.id !== id);
+          localStorage.setItem('ler-depois', JSON.stringify(saved));
+          
+          window.dispatchEvent(new CustomEvent('bookmarks-updated'));
+          updateSavedNews();
+          modal.remove();
+        });
       });
     });
+
+    // Lógica do Carrossel (Igual à main page)
+    const carrossel = container.closest('.carrossel');
+    if (carrossel && news.length > 0) {
+      const prevBtn = carrossel.querySelector('.carrossel-arrow.carrossel-prev') as HTMLButtonElement;
+      const nextBtn = carrossel.querySelector('.carrossel-arrow.carrossel-next') as HTMLButtonElement;
+      const slides = carrossel.querySelectorAll('.carrossel-slide');
+      
+      if (prevBtn && nextBtn && slides.length > 0) {
+        prevBtn.style.display = 'flex';
+        nextBtn.style.display = 'flex';
+        
+        const slideWidth = (slides[0] as HTMLElement).offsetWidth + 24;
+        
+        prevBtn.onclick = () => container.scrollBy({ left: -slideWidth, behavior: 'smooth' });
+        nextBtn.onclick = () => container.scrollBy({ left: slideWidth, behavior: 'smooth' });
+
+        // Drag scroll
+        let isDown = false;
+        let startX: number;
+        let scrollLeft: number;
+
+        container.onmousedown = (e: MouseEvent) => {
+          isDown = true;
+          container.classList.add('active');
+          startX = e.pageX - container.offsetLeft;
+          scrollLeft = container.scrollLeft;
+        };
+        container.onmouseleave = () => {
+          isDown = false;
+          container.classList.remove('active');
+        };
+        container.onmouseup = () => {
+          isDown = false;
+          container.classList.remove('active');
+        };
+        container.onmousemove = (e: MouseEvent) => {
+          if (!isDown) return;
+          e.preventDefault();
+          const x = e.pageX - container.offsetLeft;
+          const walk = (x - startX) * 2;
+          container.scrollLeft = scrollLeft - walk;
+        };
+      }
+    }
   }
 
-  // Atualiza ao carregar e quando houver mudanças
+  // Inicialização
   updateSavedNews();
+
   window.addEventListener('bookmarks-updated', updateSavedNews);
+  document.addEventListener('astro:after-swap', () => {
+    updateSavedNews();
+  });
 </script>

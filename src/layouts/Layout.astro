@@ -6,6 +6,10 @@ import "../styles/global.css";
 import Footer from "../components/Footer.astro";
 import CookieConsent from "../components/CookieConsent.astro";
 
+// 1. Headers de Cache (Stale-While-Revalidate) para Performance
+// Nota: Em produção, o servidor (Node/Vercel/etc) usará estes headers
+Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=30');
+
 // Título da página, com valor por omissão se não for passado via props
 const { titulo = "Notícias Básicas", lcpImage } = Astro.props;
 
@@ -46,6 +50,23 @@ const themeCookie = Astro.cookies.get('theme')?.value || 'dark';
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href={import.meta.env.STRAPI_URL} crossorigin />
     <link rel="dns-prefetch" href={import.meta.env.STRAPI_URL} />
+    
+    {/* Pré-carregamento de fontes críticas para evitar layout shift e acelerar FCP */}
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD7K83nnzPV8pF72baQfqL6A8BT6Y.woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="https://fonts.gstatic.com/s/dmsans/v15/rP2Hp2ywOT0kn-ITCNOTdrg.woff2"
+      crossorigin
+    />
+
     <link
       rel="preload"
       as="style"
@@ -130,6 +151,15 @@ const themeCookie = Astro.cookies.get('theme')?.value || 'dark';
         initCarousels();
       } else {
         window.addEventListener('load', initCarousels);
+      }
+
+      // Registo do Service Worker para PWA / Offline
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('SW registered'))
+            .catch(err => console.log('SW registration failed:', err));
+        });
       }
     </script>
   </body>

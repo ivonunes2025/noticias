@@ -193,6 +193,55 @@ img {
 .carrossel-prev { left: 8px; }
 .carrossel-next { right: 8px; }
 
+/* ── BOTÃO DE GUARDAR (BOOKMARK) ── */
+.bookmark-btn {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 15;
+}
+
+.bookmark-btn:hover {
+  transform: scale(1.1);
+  background: var(--cor-destaque);
+  border-color: var(--cor-destaque);
+  color: var(--cor-fundo);
+}
+
+.bookmark-btn.is-saved {
+  background: var(--cor-destaque);
+  border-color: var(--cor-destaque);
+  color: var(--cor-fundo);
+}
+
+.bookmark-btn.is-saved svg {
+  fill: currentColor;
+}
+
+/* ── BOTÃO VOLTAR ── */
+.voltar {
+  display: inline-block;
+  color: var(--cor-principal);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 32px;
+  transition: opacity 0.2s ease;
+}
+
+.voltar:hover {
+  opacity: 0.7;
+}
+
 @media (max-width: 768px) {
   .carrossel { padding: 0 40px; }
   .carrossel-arrow { width: 38px; height: 38px; font-size: 22px; }

@@ -12,6 +12,8 @@ interface Props {
   [key: string]: any;
 }
 
+import "../styles/button.css";
+
 const { 
   type = 'button', 
   variant = 'primary', 
@@ -37,68 +39,3 @@ const Element = href ? 'a' : 'button';
 >
   <slot />
 </Element>
-
-<style>
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1px solid transparent;
-    text-decoration: none;
-    line-height: 1;
-    font-family: var(--fonte-corpo);
-  }
-
-  .btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  /* Variantes */
-  .btn--primary {
-    background: var(--cor-destaque);
-    color: var(--cor-fundo);
-  }
-
-  .btn--primary:hover:not(:disabled) {
-    filter: brightness(1.1);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px var(--cor-destaque-claro);
-  }
-
-  .btn--secondary {
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--cor-principal);
-    border-color: var(--cor-borda);
-  }
-
-  .btn--secondary:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .btn--outline {
-    background: transparent;
-    color: var(--cor-destaque);
-    border-color: var(--cor-destaque);
-  }
-
-  .btn--outline:hover:not(:disabled) {
-    background: var(--cor-destaque-claro);
-  }
-
-  .btn--danger {
-    background: #ef4444;
-    color: white;
-  }
-
-  .btn--danger:hover:not(:disabled) {
-    background: #dc2626;
-  }
-</style>

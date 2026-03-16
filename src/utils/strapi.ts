@@ -24,28 +24,44 @@ export function getRichText(blocks: any): string {
 export function getImageUrl(imagem: any): string | null {
   if (!imagem) return null;
   
+  // Se já for uma string (URL direta), tratamos
+  if (typeof imagem === 'string') {
+    if (imagem.startsWith("http")) return imagem;
+    const STRAPI_URL = import.meta.env.STRAPI_URL?.replace(/\/$/, '');
+    const cleanUrl = imagem.startsWith('/') ? imagem : `/${imagem}`;
+    return STRAPI_URL ? `${STRAPI_URL}${cleanUrl}` : cleanUrl;
+  }
+
   // Caso o objeto seja um array de imagens, pegamos a primeira
   const media = Array.isArray(imagem) ? imagem[0] : imagem;
   
-  // Procuramos a URL em todos os níveis possíveis (v4, v5, populate direto, etc.)
-  const url = 
+  // Procuramos a URL em todos os níveis possíveis (v4, v5, normalized, etc.)
+  let url = 
     media?.url ?? 
     media?.attributes?.url ?? 
     media?.data?.attributes?.url ?? 
     media?.data?.url ?? 
-    media?.file?.url ?? 
-    (Array.isArray(media?.data) ? media.data[0]?.attributes?.url : null);
+    media?.file?.url;
+
+  // Se for um objeto com campo 'id' e sem 'url', pode estar dentro de 'foto'
+  if (!url && (media?.foto || media?.attributes?.foto)) {
+    return getImageUrl(media.foto ?? media.attributes.foto);
+  }
+
+  // Se não encontrou, e media.data for um array, tenta o primeiro item
+  if (!url && Array.isArray(media?.data)) {
+    url = media.data[0]?.attributes?.url ?? media.data[0]?.url;
+  }
 
   if (!url) return null;
   
   // Se for uma URL completa, retornamos
   if (url.startsWith("http")) return url;
   
-  // Se for relativa, limpamos e concatenamos com o STRAPI
-  const STRAPI = import.meta.env.STRAPI_URL?.replace(/\/$/, '');
-  if (!STRAPI) return url;
+  // Se for relativa, limpamos e concatenamos com o STRAPI_URL
+  const STRAPI_URL = import.meta.env.STRAPI_URL?.replace(/\/$/, '');
   const cleanUrl = url.startsWith('/') ? url : `/${url}`;
-  return `${STRAPI}${cleanUrl}`;
+  return STRAPI_URL ? `${STRAPI_URL}${cleanUrl}` : cleanUrl;
 }
 
 // Busca genérica no Strapi com tratamento de erros
@@ -96,7 +112,7 @@ export function normalize<T = any>(input: any): T {
   // Se for um objeto do tipo { attributes: {...} }
   let output = { ...input };
   if (input.attributes !== undefined) {
-    output = { ...input.id, ...input.attributes };
+    output = { id: input.id ?? input.attributes.id, ...input.attributes };
     delete (output as any).attributes;
   }
 

@@ -7,7 +7,6 @@ export const prerender = false;
 import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
 import CardNoticia from "../components/CardNoticia.astro";
-import { getRichText, formatDate, getImageUrl } from "../utils/strapi";
 
 const STRAPI = import.meta.env.STRAPI_URL;
 const q = (Astro.url.searchParams.get("q") ?? "").trim();

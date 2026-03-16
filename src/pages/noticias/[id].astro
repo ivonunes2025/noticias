@@ -6,27 +6,59 @@ export const prerender = false;
 import Layout from "../../layouts/Layout.astro";
 import Navbar from "../../components/Navbar.astro";
 import CardNoticia from "../../components/CardNoticia.astro";
-import { getRichText, getImageUrl, formatDate, isNewsPrivate, checkAuth } from "../../utils/strapi";
+import Autor from "../../components/Autor.astro";
+import { getRichText, getImageUrl, formatDate, isNewsPrivate, checkAuth, normalize } from "../../utils/strapi";
 import PrivateOverlay from "../../components/PrivateOverlay.astro";
 import ShareMenu from "../../components/ShareMenu.astro";
 import ReadingProgressBar from "../../components/ReadingProgressBar.astro";
 import AudioReader from "../../components/AudioReader.astro";
 
 // URL base do Strapi e slug recebido pela rota
-const STRAPI = import.meta.env.STRAPI_URL;
+const STRAPI_URL = import.meta.env.STRAPI_URL?.replace(/\/$/, '');
 const { id } = Astro.params;
 
 // 1. Estado de autenticação usando helper
 const isAuthenticated = checkAuth(Astro.cookies);
 
 // 2. Busca a notícia primeiro para saber se é privada
-const res = await fetch(
-  `${STRAPI}/api/noticias?filters[slug][$eq]=${id}&populate=*`,
-).then((r) => r.json());
+let res: any = { data: [] };
+try {
+  // Tenta buscar por slug primeiro (que é o padrão)
+  const query = `filters[slug][$eq]=${encodeURIComponent(id || '')}&populate[capa]=*&populate[categorias]=*&populate[autor][populate][foto]=*&populate[autor][populate][0]=*`;
+  let url = `${STRAPI_URL}/api/noticias?${query}`;
+  
+  let response = await fetch(url);
+  if (response.ok) {
+    res = await response.json();
+  }
 
-// Normaliza o objeto de notícia (data[0].attributes ou data[0])
-const noticiaRaw = res.data?.[0];
-const noticia = noticiaRaw?.attributes ?? noticiaRaw;
+  // Se não encontrar por slug e o ID parecer um número, tenta buscar por ID direto
+  if ((!res.data || res.data.length === 0) && id && /^\d+$/.test(id)) {
+    url = `${STRAPI_URL}/api/noticias/${id}?populate[capa]=*&populate[categorias]=*&populate[autor][populate][foto]=*&populate[autor][populate][0]=*`;
+    response = await fetch(url);
+    if (response.ok) {
+      const singleRes = await response.json();
+      // Ajusta o formato de resposta de item único para array para manter a consistência
+      if (singleRes.data) {
+        res = { data: [singleRes.data] };
+      }
+    }
+  }
+
+  // Se ainda assim não houver autor ou foto e falhou, tenta um populate mais simples como fallback
+  if (!res.data || res.data.length === 0) {
+     const fallbackUrl = `${STRAPI_URL}/api/noticias?filters[slug][$eq]=${encodeURIComponent(id || '')}&populate=*`;
+     const fallbackRes = await fetch(fallbackUrl);
+     if (fallbackRes.ok) {
+       res = await fallbackRes.json();
+     }
+  }
+} catch (e) {
+  // Erro silencioso em produção
+}
+
+// Normaliza o objeto de notícia usando o utilitário global
+const noticia = normalize(res.data?.[0]);
 
 // 3. BLOQUEIO CRÍTICO: Se for privada e não houver login
 const isPrivate = isNewsPrivate(noticia);
@@ -37,17 +69,10 @@ const showLockScreen = isPrivate && !isAuthenticated;
 // Notícias relacionadas (mesmas categorias). Usamos `slug` para evitar incluir a própria notícia.
 let relatedNews: any[] = [];
 if (noticia) {
-  const catsRaw = noticia.categorias;
-  const cats: any[] = Array.isArray(catsRaw)
-    ? catsRaw
-    : Array.isArray(catsRaw?.data)
-    ? catsRaw.data
-    : catsRaw?.data
-    ? [catsRaw.data]
-    : [];
+  const cats: any[] = Array.isArray(noticia.categorias) ? noticia.categorias : [];
 
   const catSlugs = cats
-    .map((c: any) => c?.attributes?.slug ?? c?.slug)
+    .map((c: any) => c.slug)
     .filter(Boolean);
 
   if (catSlugs.length > 0) {
@@ -56,10 +81,14 @@ if (noticia) {
       .map((slug, index) => `filters[categorias][slug][$in][${index}]=${slug}`)
       .join("&");
 
-    const url = `${STRAPI}/api/noticias?${catFilters}&filters[slug][$ne]=${id}&populate=*&pagination[pageSize]=3&sort=publishedAt:desc`;
+    const url = `${STRAPI_URL}/api/noticias?${catFilters}&filters[slug][$ne]=${encodeURIComponent(id || '')}&populate=*&pagination[pageSize]=3&sort=publishedAt:desc`;
     
-    const relatedRes = await fetch(url).then((r) => r.json());
-    relatedNews = relatedRes.data ?? [];
+    try {
+      const relatedRes = await fetch(url).then((r) => r.json());
+      relatedNews = normalize(relatedRes.data) ?? [];
+    } catch (e) {
+      // Falha silenciosa
+    }
   }
 }
 
@@ -69,13 +98,29 @@ if (noticia) {
   {!showLockScreen && <ReadingProgressBar />}
   <Navbar isHome={false} />
 
-  {/* ── Bloqueio Visual para Notícias Privadas ── */}
-  { showLockScreen ? (
+  { !noticia ? (
+    <section class="detalhe">
+      <a href="/" class="voltar">← Voltar</a>
+      <h1>Notícia não encontrada</h1>
+      <p>Verifique se o link está correto ou se a notícia foi removida.</p>
+    </section>
+  ) : showLockScreen ? (
     <section class="detalhe reveal">
       <a href="/" class="voltar">← Voltar</a>
       
       {/* Título AGORA EM CIMA da notícia */}
       <h1>{noticia?.titulo}</h1>
+
+      {noticia?.autor && (
+        <div class="meta-header" style="margin-bottom: 24px;">
+          <div class="meta-left">
+            <Autor autor={noticia.autor} />
+            {noticia.publishedAt && (
+              <span class="detalhe-data">{formatDate(noticia.publishedAt)}</span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div class="lock-container">
         <div class="lock-image-wrapper">
@@ -112,17 +157,6 @@ if (noticia) {
     </section>
   ) : (
     <>
-      {/* Mensagem de erro caso a notícia não exista para o slug indicado */}
-      {
-        !noticia && (
-          <section class="detalhe">
-            <h1>Notícia não encontrada</h1>
-            <p>Verifique se o link está correto ou se a notícia foi removida.</p>
-            <a href="/">Voltar</a>
-          </section>
-        )
-      }
-
       {/* Conteúdo principal do detalhe */}
       <section class="detalhe">
         <a href="/" class="voltar">← Voltar</a>
@@ -137,20 +171,44 @@ if (noticia) {
           )
         }
 
-        {
-          noticia?.publishedAt && (
-            <div class="meta-header">
-              <div class="meta-left">
-                <span class="detalhe-data">{formatDate(noticia.publishedAt)}</span>
-                <AudioReader />
-              </div>
-              <ShareMenu />
-            </div>
-          )
-        }
+        <div class="meta-header">
+          <div class="meta-left">
+            {noticia?.autor && <Autor autor={noticia.autor} />}
+            {noticia?.publishedAt && (
+              <span class="detalhe-data">{formatDate(noticia.publishedAt)}</span>
+            )}
+            <AudioReader />
+          </div>
+          <div class="meta-right">
+            {isAuthenticated && (
+              <button 
+                class="bookmark-btn" 
+                aria-label="Guardar para ler depois" 
+                data-bookmark-id={noticia?.slug} 
+                data-noticia-info={JSON.stringify({
+                  id: noticia?.slug,
+                  titulo: noticia?.titulo,
+                  imagem: getImageUrl(noticia?.capa),
+                  data: formatDate(noticia?.publishedAt)
+                })}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </button>
+            )}
+            <ShareMenu />
+          </div>
+        </div>
 
         <h1>{noticia?.titulo}</h1>
         <div class="detalhe-texto">{getRichText(noticia?.conteudo)}</div>
+
+        {noticia?.autor && (
+          <div class="autor-footer">
+            <Autor autor={noticia.autor} variant="large" />
+          </div>
+        )}
       </section>
 
       {
@@ -225,6 +283,13 @@ if (noticia) {
     display: flex;
     align-items: center;
     gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .meta-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
 
   h1 {
@@ -244,6 +309,13 @@ if (noticia) {
 
   .detalhe-texto :global(p) {
     margin-bottom: 24px;
+  }
+
+  .autor-footer {
+    margin-top: 60px;
+    padding-top: 40px;
+    border-top: 1px solid var(--cor-borda);
+    opacity: 0.9;
   }
 
   /* Estilos do Bloqueio */
@@ -363,3 +435,73 @@ if (noticia) {
     to { opacity: 1; transform: translateY(0); }
   }
 </style>
+
+<script>
+  function setupBookmarks() {
+    console.log("Setting up bookmarks on detail page...");
+    const bookmarkBtns = document.querySelectorAll('.bookmark-btn');
+    
+    const getSavedNews = () => {
+      const saved = localStorage.getItem('ler-depois');
+      return saved ? JSON.parse(saved) : [];
+    };
+    
+    const updateButtonsState = () => {
+      const savedNews = getSavedNews();
+      const savedIds = savedNews.map((n: any) => n.id);
+      document.querySelectorAll('.bookmark-btn').forEach(btn => {
+        const id = btn.getAttribute('data-bookmark-id');
+        if (id && savedIds.includes(id)) {
+          btn.classList.add('is-saved');
+        } else {
+          btn.classList.remove('is-saved');
+        }
+      });
+    };
+
+    bookmarkBtns.forEach(btn => {
+      const b = btn as HTMLButtonElement;
+      // Remove listener antigo para evitar duplicados
+      const newBtn = b.cloneNode(true) as HTMLButtonElement;
+      if (b.parentNode) {
+        b.parentNode.replaceChild(newBtn, b);
+
+        newBtn.addEventListener('click', (e) => {
+          console.log("Bookmark clicked!");
+          e.preventDefault();
+          e.stopPropagation();
+          
+          const id = newBtn.getAttribute('data-bookmark-id');
+          const infoStr = newBtn.getAttribute('data-noticia-info');
+          if (!id || !infoStr) return;
+
+          const noticiaInfo = JSON.parse(infoStr);
+          let savedNews = getSavedNews();
+          
+          const index = savedNews.findIndex((n: any) => n.id === id);
+          if (index > -1) {
+            savedNews.splice(index, 1);
+            newBtn.classList.remove('is-saved');
+          } else {
+            savedNews.push(noticiaInfo);
+            newBtn.classList.add('is-saved');
+          }
+          
+          localStorage.setItem('ler-depois', JSON.stringify(savedNews));
+          window.dispatchEvent(new CustomEvent('bookmarks-updated'));
+        });
+      }
+    });
+
+    updateButtonsState();
+
+    // Ouvir mudanças externas (outras abas ou outros componentes)
+    window.removeEventListener('bookmarks-updated', updateButtonsState);
+    window.addEventListener('bookmarks-updated', updateButtonsState);
+  }
+
+  // Corre imediatamente e também após trocas de página do Astro (View Transitions)
+  setupBookmarks();
+  document.addEventListener('astro:page-load', setupBookmarks);
+  document.addEventListener('astro:after-swap', setupBookmarks);
+</script>

@@ -1,32 +1,12 @@
 ---
 // ReadingProgressBar.astro
 // Barra de progresso de leitura fixa no topo
+import "../styles/reading-progress-bar.css";
 ---
 
 <div class="reading-progress-container">
   <div id="reading-progress-bar" class="reading-progress-bar"></div>
 </div>
-
-<style>
-  .reading-progress-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 4px;
-    background: transparent;
-    z-index: 2000; /* Acima da Navbar */
-    pointer-events: none;
-  }
-
-  .reading-progress-bar {
-    height: 100%;
-    width: 0%;
-    background: var(--cor-destaque);
-    box-shadow: 0 0 10px var(--cor-destaque-claro);
-    transition: width 0.1s ease-out;
-  }
-</style>
 
 <script>
   function setupReadingProgress() {

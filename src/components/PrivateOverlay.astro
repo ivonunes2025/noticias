@@ -1,6 +1,7 @@
 ---
 // PrivateOverlay.astro
 // Componente centralizado para exibir o bloqueio de conteúdo privado
+import "../styles/private-overlay.css";
 
 interface Props {
   variant?: 'card' | 'full'; // 'card' para listas, 'full' para detalhe da notícia
@@ -26,95 +27,3 @@ const { variant = 'card' } = Astro.props;
     </div>
   )}
 </div>
-
-<style>
-  .private-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.35);
-    z-index: 10;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(2px);
-  }
-
-  /* Variantes */
-  .private-overlay.full {
-    padding: 40px;
-    text-align: center;
-    background: rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(4px);
-  }
-
-  /* Ícone */
-  .lock-icon-container {
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(8px);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #c8963e;
-    margin-bottom: 12px;
-    border: 2px solid #c8963e;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s ease;
-  }
-
-  .full .lock-icon-container {
-    width: 80px;
-    height: 80px;
-    margin-bottom: 24px;
-  }
-
-  .card .lock-icon-container {
-    width: 56px;
-    height: 56px;
-  }
-
-  /* Badge (Card) */
-  .private-badge {
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
-    color: #c8963e;
-    padding: 4px 12px;
-    border-radius: 50px;
-    font-size: 0.65rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    border: 1.5px solid #c8963e;
-  }
-
-  /* Info (Full) */
-  .private-content-info h2 {
-    color: white;
-    font-family: var(--fonte-titulo);
-    font-size: 2rem;
-    margin-bottom: 16px;
-  }
-
-  .private-content-info p {
-    color: rgba(255, 255, 255, 0.8);
-    margin-bottom: 32px;
-  }
-
-  /* Hover Effects (herdado do pai se necessário) */
-  :global(.noticia-card:hover) .lock-icon-container,
-  :global(.lock-container:hover) .lock-icon-container {
-    transform: scale(1.1) rotate(-5deg);
-    background: rgba(200, 150, 62, 0.2);
-    border-color: #e5ac4e;
-    color: #e5ac4e;
-  }
-
-  :global(.noticia-card:hover) .private-badge {
-    background: rgba(200, 150, 62, 0.15);
-    border-color: #e5ac4e;
-    color: #e5ac4e;
-  }
-</style>

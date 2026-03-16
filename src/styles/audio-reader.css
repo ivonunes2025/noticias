@@ -1,0 +1,30 @@
+.audio-reader-container {
+  display: inline-block;
+  margin-right: 12px;
+}
+
+.tts-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(200, 150, 62, 0.1);
+  color: var(--cor-destaque);
+  border: 1px solid var(--cor-destaque);
+  padding: 8px 16px;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.tts-btn:hover {
+  background: var(--cor-destaque);
+  color: var(--cor-fundo);
+}
+
+.tts-btn.is-playing {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: white;
+}
