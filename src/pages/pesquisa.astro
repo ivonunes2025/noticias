@@ -13,36 +13,27 @@ const STRAPI = import.meta.env.STRAPI_URL;
 const q = (Astro.url.searchParams.get("q") ?? "").trim();
 
 let noticias: any[] = [];
-let categorias: any[] = [];
 
 if (q && STRAPI) {
   try {
     const encoded = encodeURIComponent(q);
 
-    const [noticiasRes, categoriasRes] = await Promise.all([
-      fetch(
-        `${STRAPI}/api/noticias?` +
-          `filters[$or][0][titulo][$containsi]=${encoded}&` +
-          `filters[$or][1][conteudo][$containsi]=${encoded}&populate=*`,
-      )
-        .then((r) => r.json())
-        .catch(() => ({ data: [] })),
-      fetch(`${STRAPI}/api/categorias?filters[nome][$containsi]=${encoded}`)
-        .then((r) => r.json())
-        .catch(() => ({ data: [] })),
-    ]);
+    const noticiasRes = await fetch(
+      `${STRAPI}/api/noticias?` +
+        `filters[$or][0][titulo][$containsi]=${encoded}&` +
+        `filters[$or][1][conteudo][$containsi]=${encoded}&populate=*`,
+    ).then((r) => r.json());
 
     noticias = Array.isArray(noticiasRes?.data) ? noticiasRes.data : [];
-    categorias = Array.isArray(categoriasRes?.data) ? categoriasRes.data : [];
   } catch (e) {
     console.error("Erro ao pesquisar no Strapi:", e);
   }
 }
 
-const temResultados = noticias.length > 0 || categorias.length > 0;
+const temResultados = noticias.length > 0;
 ---
 
-<Layout titulo={q ? `Resultados para "${q}"` : "Pesquisa"}>
+<Layout titulo={q ? `Resultados da pesquisa - "${q}"` : "Resultados da pesquisa"}>
   <Navbar isHome={false} />
 
   <section class="pesquisa">
@@ -52,7 +43,7 @@ const temResultados = noticias.length > 0 || categorias.length > 0;
     {
       q ? (
         <p class="pesquisa-query">
-          Resultados para <strong>"{q}"</strong>
+          Encontrámos {noticias.length} resultados para "{q}"
         </p>
       ) : (
         <p class="pesquisa-query">
@@ -66,28 +57,8 @@ const temResultados = noticias.length > 0 || categorias.length > 0;
     {
       q && temResultados && (
         <div class="resultados-wrapper">
-          {categorias.length > 0 && (
-            <section class="bloco-resultados">
-              <h2>Categorias</h2>
-              <ul class="lista-categorias">
-                {categorias.map((c: any) => {
-                  const attrs = c.attributes ?? c;
-                  const slug = attrs.slug ?? c.id;
-                  return (
-                    <li>
-                      <a href={`/categorias/${slug}`}>
-                        {attrs.nome ?? attrs.name ?? "Categoria"}
-                      </a>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
-
           {noticias.length > 0 && (
             <section class="bloco-resultados">
-              <h2>Notícias</h2>
               <div class="noticias-grid">
                 {noticias.map((n: any) => (
                   <CardNoticia noticia={n} />
@@ -149,35 +120,6 @@ const temResultados = noticias.length > 0 || categorias.length > 0;
   .bloco-resultados h2 {
     font-size: 1.2rem;
     margin-bottom: 16px;
-  }
-
-  .lista-categorias {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-
-  .lista-categorias a {
-    display: inline-block;
-    padding: 6px 14px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    text-decoration: none;
-    color: var(--cor-principal);
-    font-size: 0.85rem;
-    transition:
-      background 0.2s ease,
-      border-color 0.2s ease,
-      color 0.2s ease;
-  }
-
-  .lista-categorias a:hover {
-    background: var(--cor-destaque-claro);
-    border-color: var(--cor-destaque);
-    color: #000;
   }
 
   .noticias-grid {

@@ -42,9 +42,72 @@ export function getImageUrl(imagem: any): string | null {
   if (url.startsWith("http")) return url;
   
   // Se for relativa, limpamos e concatenamos com o STRAPI
+  const STRAPI = import.meta.env.STRAPI_URL?.replace(/\/$/, '');
   if (!STRAPI) return url;
   const cleanUrl = url.startsWith('/') ? url : `/${url}`;
   return `${STRAPI}${cleanUrl}`;
+}
+
+// Busca genérica no Strapi com tratamento de erros
+export async function fetchStrapi<T = any>(
+  path: string,
+  params: Record<string, string | number | boolean> = {}
+): Promise<T | null> {
+  const STRAPI = import.meta.env.STRAPI_URL?.replace(/\/$/, '');
+  if (!STRAPI) return null;
+
+  try {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      query.append(key, String(value));
+    });
+
+    const queryString = query.toString();
+    const url = `${STRAPI}/api/${path}${queryString ? `?${queryString}` : ""}`;
+    
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    
+    const json = await res.json();
+    return json.data as T;
+  } catch (e) {
+    console.error(`Erro ao buscar ${path} no Strapi:`, e);
+    return null;
+  }
+}
+
+/**
+ * Normaliza objetos do Strapi (v4/v5) para facilitar o acesso às propriedades.
+ * Remove a necessidade de aceder sempre a .attributes ou .data.
+ */
+export function normalize<T = any>(input: any): T {
+  if (!input) return input;
+
+  // Se for um array, normaliza cada item
+  if (Array.isArray(input)) {
+    return input.map(item => normalize(item)) as any;
+  }
+
+  // Se for um objeto do tipo { data: [...] } ou { data: {...} }
+  if (input.data !== undefined) {
+    return normalize(input.data);
+  }
+
+  // Se for um objeto do tipo { attributes: {...} }
+  let output = { ...input };
+  if (input.attributes !== undefined) {
+    output = { ...input.id, ...input.attributes };
+    delete (output as any).attributes;
+  }
+
+  // Normaliza recursivamente todas as propriedades
+  for (const key in output) {
+    if (output[key] && typeof output[key] === 'object') {
+      output[key] = normalize(output[key]);
+    }
+  }
+
+  return output as T;
 }
 
 // Formata datas ISO em português (Portugal), por exemplo: "12 de março de 2026"
@@ -65,6 +128,18 @@ export function formatDate(dateStr: string | undefined | null): string {
  */
 
 // Verifica se uma notícia é privada (suporta vários nomes de campos e formatos)
+export async function getCategorias() {
+  const STRAPI = import.meta.env.STRAPI_URL;
+  if (!STRAPI) return [];
+  try {
+    const res = await fetch(`${STRAPI}/api/categorias?pagination[pageSize]=100&sort=nome:asc`);
+    const json = await res.json();
+    return Array.isArray(json?.data) ? json.data : [];
+  } catch (e) {
+    return [];
+  }
+}
+
 export function isNewsPrivate(noticia: any): boolean {
   if (!noticia) return false;
   const attrs = noticia.attributes ?? noticia;

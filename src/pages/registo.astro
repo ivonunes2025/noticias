@@ -1,6 +1,9 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
+import Button from "../components/Button.astro";
+import AuthCard from "../components/AuthCard.astro";
+import { SITE_CONFIG } from "../utils/config";
 
 // Se o utilizador já estiver logado (tem o cookie user_name), redireciona para a home
 const user = Astro.cookies.get('user_name')?.value;
@@ -9,25 +12,23 @@ if (user) {
 }
 ---
 
-<Layout titulo="Registo - Notícias Básicas">
+<Layout titulo={`Registar - ${SITE_CONFIG.nome}`}>
   <Navbar isHome={false} />
 
   <main class="auth-container">
-    <div class="auth-card reveal">
-      <div class="auth-header">
-        <h1>Crie a sua conta</h1>
-        <p>Junte-se a nós para uma experiência de notícias personalizada.</p>
-      </div>
-
+    <AuthCard 
+      title="Criar Conta" 
+      subtitle="Junte-se a nós para uma experiência personalizada."
+    >
       <form id="registo-form">
         <div class="input-group">
           <input type="text" id="username" name="username" required placeholder=" " />
-          <label for="username">Nome de Utilizador</label>
+          <label for="username">Nome de utilizador</label>
         </div>
 
         <div class="input-group">
           <input type="email" id="email" name="email" required placeholder=" " />
-          <label for="email">O seu Email</label>
+          <label for="email">E-mail</label>
         </div>
 
         <div class="input-group">
@@ -35,40 +36,40 @@ if (user) {
           <label for="password">Palavra-passe</label>
         </div>
 
-        <button type="submit" class="auth-btn">
-          <span>Criar Conta</span>
+        <Button type="submit" class="auth-btn" id="registo-submit">
+          <span>Registar</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
-        </button>
+        </Button>
 
         <div id="auth-status" class="auth-status"></div>
       </form>
 
       <div class="auth-footer">
-        <p>Já tem uma conta? <a href="/login">Inicie sessão</a></p>
+        <p>Já tem uma conta? <a href="/login">Entrar</a></p>
       </div>
-    </div>
+    </AuthCard>
   </main>
 </Layout>
 
 <script>
-  const form = document.getElementById('registo-form') as HTMLFormElement;
+  const form = document.getElementById('registo-form');
   const status = document.getElementById('auth-status');
 
   if (form && status) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const btn = form.querySelector('.auth-btn') as HTMLButtonElement;
-      const btnSpan = btn.querySelector('span');
+      const btn = document.getElementById('registo-submit') as HTMLButtonElement;
+      const btnSpan = btn?.querySelector('span');
       
-      const formData = new FormData(form);
+      const formData = new FormData(form as HTMLFormElement);
       const username = formData.get('username');
       const email = formData.get('email');
       const password = formData.get('password');
 
       if (btnSpan) {
         const originalText = btnSpan.innerText;
-        btnSpan.innerText = 'A criar conta...';
-        btn.disabled = true;
+        btnSpan.innerText = 'A registar...';
+        (btn as HTMLButtonElement).disabled = true;
         status.innerText = '';
         status.className = 'auth-status';
 
@@ -82,20 +83,20 @@ if (user) {
           const result = await response.json();
 
           if (response.ok) {
-            status.innerText = 'Conta criada com sucesso! A redirecionar...';
+            status.innerText = 'Registo efetuado com sucesso!';
             status.className = 'auth-status success show';
             setTimeout(() => window.location.href = '/', 1500);
           } else {
             status.innerText = result.error || 'Erro ao criar conta.';
             status.className = 'auth-status error show';
             btnSpan.innerText = originalText;
-            btn.disabled = false;
+            (btn as HTMLButtonElement).disabled = false;
           }
         } catch (error) {
-          status.innerText = 'Erro de conexão.';
+          status.innerText = 'Erro de ligação ao servidor.';
           status.className = 'auth-status error show';
           btnSpan.innerText = originalText;
-          btn.disabled = false;
+          (btn as HTMLButtonElement).disabled = false;
         }
       }
     });

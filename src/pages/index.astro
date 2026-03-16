@@ -2,22 +2,30 @@
 import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
 import CardNoticia from "../components/CardNoticia.astro";
-import { getRichText, getImageUrl, formatDate } from "../utils/strapi";
+import SectionHeader from "../components/SectionHeader.astro";
+import { getRichText, getImageUrl, formatDate, checkAuth, fetchStrapi } from "../utils/strapi";
+import { SITE_CONFIG } from "../utils/config";
 
 const STRAPI = import.meta.env.STRAPI_URL;
 
-// Busca notícias e categorias em paralelo
-const [noticiasRes, categoriasRes] = await Promise.all([
-  fetch(`${STRAPI}/api/noticias?populate[capa][fields][0]=url&populate[categorias][fields][0]=slug&populate[categorias][fields][1]=nome&pagination[pageSize]=100&sort=publishedAt:desc`).then((r) => r.json()),
-  fetch(`${STRAPI}/api/categorias?pagination[pageSize]=20&sort=nome:asc`).then((r) => r.json()),
+// Busca notícias e categorias em paralelo usando o novo utilitário dinâmico
+const [news, categorias] = await Promise.all([
+  fetchStrapi('noticias', { 
+    'populate[capa][fields][0]': 'url', 
+    'populate[categorias][fields][0]': 'slug', 
+    'populate[categorias][fields][1]': 'nome', 
+    'pagination[pageSize]': 100, 
+    'sort': 'publishedAt:desc' 
+  }).then(d => d || []),
+  fetchStrapi('categorias', { 
+    'pagination[pageSize]': 20, 
+    'sort': 'nome:asc' 
+  }).then(d => d || []),
 ]);
 
-const news: any[] = noticiasRes.data ?? [];
-const categorias: any[] = categoriasRes.data ?? [];
-
 // Estado de autenticação (Cookies) para filtrar notícias privadas
-const userCookie = Astro.cookies.get('user_name');
-const isAuthenticated = !!userCookie?.value;
+const cookies = Astro.cookies;
+const isAuthenticated = checkAuth(cookies);
 
 // Filtra notícias válidas (com slug)
 const newsValid = news.filter((n: any) => {
@@ -25,7 +33,7 @@ const newsValid = news.filter((n: any) => {
   return Boolean(attrs.slug);
 });
 
-// 🌟 Secção "Em Destaque": apenas as que têm o campo 'destaque' como verdadeiro (ou as 3 últimas se o campo ainda não existir)
+// 🌟 Secção "Em Destaque": apenas as que têm o campo 'destaque' como verdadeiro
 const featuredNews = newsValid.filter((n: any) => {
   const attrs = n.attributes ?? n;
   return attrs.destaque === true;
@@ -34,8 +42,8 @@ const featuredNews = newsValid.filter((n: any) => {
 // Se não houver nenhuma marcada como destaque, mostramos as 3 mais recentes por defeito
 const displayFeatured = featuredNews.length > 0 ? featuredNews : newsValid.slice(0, 3);
 
-// Últimas 6 notícias para o ticker
-const tickerNews = newsValid.slice(0, 6);
+// Últimas 10 notícias para o ticker
+const tickerNews = newsValid.slice(0, 10);
 
 // Notícias por categoria (máx 6 por categoria)
 const noticiasPorCategoria = categorias.map((cat: any) => {
@@ -61,10 +69,9 @@ const noticiasPorCategoria = categorias.map((cat: any) => {
   }).slice(0, 6);
 
   return { slug: catSlug, nome: catNome, noticias };
-}).filter((c) => c.noticias.length > 0);
+}).filter((c: any) => c.noticias.length > 0);
 
 // ── Lógica SSR para "Para Si" ──
-// Lemos as preferências dos cookies no servidor para evitar CLS (Layout Shift)
 const prefsCookie = Astro.cookies.get('preferencias-categorias');
 
 let favoriteNews: any[] = [];
@@ -75,8 +82,7 @@ if (isAuthenticated && prefsCookie && prefsCookie.value) {
     const prefs = JSON.parse(prefsCookie.value);
     if (Array.isArray(prefs) && prefs.length > 0) {
       hasPrefs = true;
-      // Filtramos diretamente de newsValid para manter a estrutura do Strapi compatível com CardNoticia
-      favoriteNews = newsValid.filter(n => {
+      favoriteNews = newsValid.filter((n: any) => {
         const attrs = n.attributes ?? n;
         const cats = attrs.categorias;
         const catSlugs = (Array.isArray(cats) ? cats : Array.isArray(cats?.data) ? cats.data : cats?.data ? [cats.data] : [])
@@ -101,7 +107,7 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
   {/* ── Ticker Personalizado: Para Si (SSR) ── */}
   {hasPrefs && favoriteNews.length > 0 && (
     <div id="para-si-ticker" class="ticker-bar ticker-bar--personal">
-      <span class="ticker-label">Para Si</span>
+      <span class="ticker-label">{SITE_CONFIG.ui.home.paraSi}</span>
       <div class="ticker-track-wrapper">
         <div class="ticker-track">
           {[...favoriteNews, ...favoriteNews].map((n: any) => {
@@ -121,9 +127,7 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
   {/* ── Secção Personalizada: Para Si (SSR) ── */}
   {hasPrefs && favoriteNews.length > 0 && (
     <section id="para-si" class="personal-section">
-      <div class="personal-header">
-        <h2>Para Si</h2>
-      </div>
+      <SectionHeader title={SITE_CONFIG.ui.home.paraSi} />
       <div class="carrossel">
         <button type="button" class="carrossel-arrow carrossel-prev" aria-label="Anterior">‹</button>
         <button type="button" class="carrossel-arrow carrossel-next" aria-label="Próximo">›</button>
@@ -141,7 +145,7 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
   {/* ── Breaking News Ticker ── */}
   {tickerNews.length > 0 && (
     <div class="ticker-bar">
-      <span class="ticker-label">Últimas</span>
+      <span class="ticker-label">{SITE_CONFIG.ui.home.ultimas}</span>
       <div class="ticker-track-wrapper">
         <div class="ticker-track">
           {[...tickerNews, ...tickerNews].map((n: any) => {
@@ -160,7 +164,7 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
 
   {/* ── Em Destaque ── */}
   <section id="noticias">
-    <h2>Em Destaque</h2>
+    <SectionHeader title={SITE_CONFIG.ui.home.destaque} />
     {displayFeatured.length > 0 && (
       <div class="carrossel">
         <button type="button" class="carrossel-arrow carrossel-prev" aria-label="Notícia anterior">‹</button>
@@ -179,7 +183,7 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
   {/* ── Últimas Notícias ── */}
   {newsValid.length > 0 && (
     <section id="ultimas" class="ultimas-section">
-      <h2>Últimas Notícias</h2>
+      <SectionHeader title={SITE_CONFIG.ui.home.ultimas} />
       <div class="ultimas-grid">
         {newsValid.slice(0, 6).map((n: any) => (
           <CardNoticia noticia={n} horizontal={true} />
@@ -189,12 +193,9 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
   )}
 
   {/* ── Por Categoria ── */}
-  {noticiasPorCategoria.map((cat) => (
+  {noticiasPorCategoria.map((cat: any) => (
     <section class="categoria-section">
-      <div class="categoria-header">
-        <h2>{cat.nome}</h2>
-        <a href={`/categorias/${cat.slug}`} class="ver-mais">Ver todas →</a>
-      </div>
+      <SectionHeader title={cat.nome} href={`/categorias/${cat.slug}`} />
       <div class="carrossel carrossel-cat" data-cat={cat.slug}>
         <button type="button" class="carrossel-arrow carrossel-prev" aria-label="Anterior">‹</button>
         <button type="button" class="carrossel-arrow carrossel-next" aria-label="Próximo">›</button>

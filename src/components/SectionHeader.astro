@@ -1,0 +1,64 @@
+---
+/**
+ * Componente SectionHeader
+ * Usado para padronizar os títulos das secções com a linha decorativa
+ * e um opcional link "Ver mais".
+ */
+interface Props {
+  title: string;
+  href?: string;
+  linkText?: string;
+  id?: string;
+}
+
+const { title, href, linkText = "Ver todas →", id } = Astro.props;
+---
+
+<header class="section-header" id={id}>
+  <h2>{title}</h2>
+  {href && (
+    <a href={href} class="ver-mais">{linkText}</a>
+  )}
+</header>
+
+<style>
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.07);
+    padding-bottom: 12px;
+    margin-bottom: 24px;
+  }
+
+  h2 {
+    margin-bottom: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  h2::after {
+    bottom: -16px;
+  }
+
+  .ver-mais {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--cor-destaque);
+    text-decoration: none;
+    letter-spacing: 0.04em;
+    transition: opacity 0.2s;
+  }
+
+  .ver-mais:hover {
+    opacity: 0.7;
+  }
+
+  @media (max-width: 480px) {
+    .section-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 16px;
+    }
+  }
+</style>

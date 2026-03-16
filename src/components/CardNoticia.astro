@@ -1,50 +1,52 @@
 ---
 // CardNoticia.astro
 // Componente reutilizável para cartões de notícias em todo o site
-import { getImageUrl, formatDate, getRichText } from "../utils/strapi";
+import { getImageUrl, formatDate, getRichText, isNewsPrivate, checkAuth, normalize } from "../utils/strapi";
 import { Image } from 'astro:assets';
+import PrivateOverlay from "./PrivateOverlay.astro";
 
-const { noticia, horizontal = false, isLCP = false } = Astro.props;
+const { noticia: rawNoticia, horizontal = false, isLCP = false } = Astro.props;
 
-if (!noticia) return null;
+if (!rawNoticia) return null;
 
-const attrs = noticia.attributes ?? noticia;
-const slug = attrs.slug ?? noticia.id;
-const imagemUrl = getImageUrl(attrs.capa ?? attrs.imagem) || "/placeholder.jpg";
-const dataFormatada = formatDate(attrs.publishedAt);
-const resumo = getRichText(attrs.conteudo || attrs.resumo).slice(0, 140) + "...";
+// Normaliza a notícia para facilitar o acesso
+const noticia = normalize(rawNoticia);
 
-// Verifica se é privada (suporta vários nomes de campos possíveis no Strapi)
-const isPrivateField = attrs.privadas === true || attrs.Privadas === true || 
-                       attrs.privadas === "true" || attrs.Privadas === "true";
+const slug = noticia.slug ?? noticia.id;
+const imagemUrl = getImageUrl(noticia.capa ?? noticia.imagem) || "/placeholder.jpg";
+const dataFormatada = formatDate(noticia.publishedAt);
+const resumo = getRichText(noticia.conteudo || noticia.resumo).slice(0, 140) + "...";
 
-// Verifica autenticação
-const userCookie = Astro.cookies.get('user_name');
-const isAuthenticated = !!userCookie?.value;
+// Verifica se é privada e autenticação usando helpers
+const isPrivateField = isNewsPrivate(noticia);
+const isAuthenticated = checkAuth(Astro.cookies);
 
 // Só mostra como bloqueada se for privada E o utilizador não estiver logado
 const showBlocked = isPrivateField && !isAuthenticated;
 ---
 
-<a href={`/noticias/${slug}`} class={`noticia-card ${horizontal ? 'noticia-card--horizontal' : ''} ${showBlocked ? 'is-private' : ''}`}>
+<a href={`/noticias/${slug}`} class={`noticia-card ${horizontal ? 'noticia-card--horizontal' : ''} ${showBlocked ? 'is-private' : ''}`} data-id={noticia.slug}>
   <div class="noticia-img-wrapper">
-    {showBlocked && (
-      <div class="noticia-private-overlay">
-        <div class="noticia-lock-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-            <line x1="1" y1="1" x2="23" y2="23"></line>
-          </svg>
-        </div>
-        <div class="noticia-badge">
-          Exclusivo
-        </div>
-      </div>
+    {showBlocked && <PrivateOverlay variant="card" />}
+    
+    {/* Botão de Guardar (Bookmark) */}
+    {!showBlocked && (
+      <button class="bookmark-btn" aria-label="Guardar para ler depois" data-bookmark-id={noticia.slug} data-noticia-info={JSON.stringify({
+        id: noticia.slug,
+        titulo: noticia.titulo,
+        imagem: imagemUrl,
+        data: dataFormatada
+      })}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+        </svg>
+      </button>
     )}
+
     {imagemUrl.startsWith('http') && !imagemUrl.includes('placeholder') ? (
       <Image 
         src={imagemUrl} 
-        alt={attrs.titulo} 
+        alt={noticia.titulo} 
         class={`noticia-img ${showBlocked ? 'blur-img' : ''}`} 
         width={400} 
         height={225}
@@ -56,7 +58,7 @@ const showBlocked = isPrivateField && !isAuthenticated;
     ) : (
       <img 
         src={imagemUrl} 
-        alt={attrs.titulo} 
+        alt={noticia.titulo} 
         class={`noticia-img ${showBlocked ? 'blur-img' : ''}`} 
         loading={isLCP ? "eager" : "lazy"} 
         width="400" 
@@ -67,7 +69,7 @@ const showBlocked = isPrivateField && !isAuthenticated;
   </div>
   <div class="noticia-corpo">
     <span class="noticia-data">{dataFormatada}</span>
-    <h3 class="noticia-titulo">{attrs.titulo}</h3>
+    <h3 class="noticia-titulo">{noticia.titulo}</h3>
     {!horizontal && <p class="noticia-resumo">{resumo}</p>}
   </div>
 </a>
@@ -127,71 +129,52 @@ const showBlocked = isPrivateField && !isAuthenticated;
     width: 100%;
     overflow: hidden;
     background-color: var(--cor-borda);
-    aspect-ratio: 16 / 9; /* Garante que o espaço é reservado antes do load */
+    aspect-ratio: 16 / 9;
   }
 
-  .noticia-badge {
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
-    color: #c8963e; /* Amarelo/Dourado fixo */
-    padding: 4px 12px;
-    border-radius: 50px; /* Mais arredondado para estilo moderno */
-    font-size: 0.65rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    border: 1.5px solid #c8963e; /* Contorno amarelo/dourado */
-  }
-
-  .noticia-card:hover .noticia-badge {
-    background: rgba(200, 150, 62, 0.15);
-    border-color: #e5ac4e;
-    color: #e5ac4e;
-  }
-
-  .noticia-private-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.3);
-    z-index: 5;
-    transition: all 0.3s ease;
-  }
-
-  .noticia-card:hover .noticia-private-overlay {
+  .noticia-card:hover .noticia-img-wrapper :global(.private-overlay) {
     background: rgba(0, 0, 0, 0.4);
   }
 
-  .blur-img {
-    filter: blur(12px) grayscale(0.5);
-    transform: scale(1.1); /* Compensa o desfoque nas bordas */
-  }
-
-  .noticia-lock-icon {
-    width: 56px;
-    height: 56px;
+  .bookmark-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 15;
     background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #c8963e; /* Amarelo/Dourado fixo para o ícone */
-    margin-bottom: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
     transition: all 0.3s ease;
-    border: 2px solid #c8963e; /* Contorno amarelo/dourado fixo */
   }
 
-  .noticia-card:hover .noticia-lock-icon {
-    transform: scale(1.15) rotate(-5deg);
-    background: rgba(200, 150, 62, 0.2);
-    border-color: #e5ac4e;
-    color: #e5ac4e;
+  .bookmark-btn:hover {
+    transform: scale(1.1);
+    background: var(--cor-destaque);
+    border-color: var(--cor-destaque);
+    color: var(--cor-fundo);
+  }
+
+  .bookmark-btn.is-saved {
+    background: var(--cor-destaque);
+    border-color: var(--cor-destaque);
+    color: var(--cor-fundo);
+  }
+
+  .bookmark-btn.is-saved svg {
+    fill: currentColor;
+  }
+
+  .blur-img {
+    filter: blur(12px) grayscale(0.5);
+    transform: scale(1.1);
   }
 
   .noticia-img {
@@ -206,7 +189,6 @@ const showBlocked = isPrivateField && !isAuthenticated;
     transform: scale(1.05);
   }
 
-  /* Se estiver bloqueada, o hover não deve aumentar o zoom da imagem já desfocada */
   .is-private:hover .noticia-img {
     transform: scale(1.1);
   }
@@ -216,7 +198,7 @@ const showBlocked = isPrivateField && !isAuthenticated;
     display: flex;
     flex-direction: column;
     flex-grow: 1;
-    min-height: 140px; /* Estabiliza o tamanho do corpo mesmo se o texto variar */
+    min-height: 140px;
   }
 
   .noticia-data {
@@ -252,21 +234,61 @@ const showBlocked = isPrivateField && !isAuthenticated;
   }
 
   @media (max-width: 768px) {
-    .noticia-img-wrapper {
-      height: 160px;
-    }
-    
     .noticia-corpo {
       padding: 16px;
     }
-
     .noticia-titulo {
       font-size: 1rem;
     }
-
     .noticia-resumo {
       -webkit-line-clamp: 2;
       font-size: 0.82rem;
     }
   }
 </style>
+
+<script>
+  function setupBookmarks() {
+    const bookmarkBtns = document.querySelectorAll('.bookmark-btn');
+    const getSavedNews = () => {
+      const saved = localStorage.getItem('ler-depois');
+      return saved ? JSON.parse(saved) : [];
+    };
+    const updateButtonsState = () => {
+      const savedNews = getSavedNews();
+      const savedIds = savedNews.map((n: any) => n.id);
+      document.querySelectorAll('.bookmark-btn').forEach(btn => {
+        const id = btn.getAttribute('data-bookmark-id');
+        if (id && savedIds.includes(id)) {
+          btn.classList.add('is-saved');
+        } else {
+          btn.classList.remove('is-saved');
+        }
+      });
+    };
+    bookmarkBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = btn.getAttribute('data-bookmark-id');
+        const infoStr = btn.getAttribute('data-noticia-info');
+        if (!id || !infoStr) return;
+        const noticiaInfo = JSON.parse(infoStr);
+        let savedNews = getSavedNews();
+        const index = savedNews.findIndex((n: any) => n.id === id);
+        if (index > -1) {
+          savedNews.splice(index, 1);
+          btn.classList.remove('is-saved');
+        } else {
+          savedNews.push(noticiaInfo);
+          btn.classList.add('is-saved');
+        }
+        localStorage.setItem('ler-depois', JSON.stringify(savedNews));
+        window.dispatchEvent(new CustomEvent('bookmarks-updated'));
+      });
+    });
+    updateButtonsState();
+  }
+  setupBookmarks();
+  document.addEventListener('astro:after-swap', setupBookmarks);
+</script>

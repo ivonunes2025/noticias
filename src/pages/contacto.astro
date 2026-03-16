@@ -10,36 +10,24 @@ export const prerender = false;
 // Importação dos componentes base do site
 import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
-import { getImageUrl } from "../utils/strapi";
+import Button from "../components/Button.astro";
+import SectionHeader from "../components/SectionHeader.astro";
+import { getImageUrl, fetchStrapi } from "../utils/strapi";
+import { SITE_CONFIG } from "../utils/config";
 
-// URL base do Strapi obtida das variáveis de ambiente
-const STRAPI = import.meta.env.STRAPI_URL;
-
-/** 
- * BUSCA DE DADOS:
- * Fazemos um fetch à coleção de 'Páginas' do Strapi filtrando pelo slug 'contacto'.
- * O parâmetro 'populate=*' garante que trazemos todos os campos (como imagens e mapa).
- */
-const res = await fetch(`${STRAPI}/api/paginas?filters[slug][$eq]=contacto&populate=*`);
-const json = await res.json();
-
-/**
- * TRATAMENTO DE DADOS:
- * O Strapi devolve os dados numa lista (data[]). Apanhamos o primeiro item.
- * Suportamos tanto o formato Strapi v4 (attributes) como formatos simplificados.
- */
-const rawData = json.data;
-const pageItem = Array.isArray(rawData) ? rawData[0] : rawData;
+// Busca dados da página de contacto no Strapi
+const pageRes = await fetchStrapi('paginas', { 'filters[slug][$eq]': 'contacto', 'populate': '*' });
+const pageItem = Array.isArray(pageRes) ? pageRes[0] : pageRes;
 const contacto = pageItem?.attributes ?? pageItem;
 ---
 
-<Layout titulo={contacto?.titulo ?? "Contacto"}>
+<Layout titulo={contacto?.titulo ?? SITE_CONFIG.ui.common.contacto}>
   <Navbar isHome={false} />
 
   <main class="contacto-container">
     <header class="contacto-header reveal">
       <div class="header-content">
-        <h1>{contacto?.titulo}</h1>
+        <h1>{contacto?.titulo || SITE_CONFIG.ui.common.contacto}</h1>
         {contacto?.descricao && (
           <p class="contacto-descricao">{contacto.descricao}</p>
         )}
@@ -56,7 +44,7 @@ const contacto = pageItem?.attributes ?? pageItem;
       <div class="contacto-grid">
         <!-- Coluna de Informações -->
         <div class="info-column reveal" style="transition-delay: 0.1s;">
-          <h2 class="section-title">Fale Connosco</h2>
+          <SectionHeader title="Fale Connosco" />
           <p class="section-text">Estamos aqui para ajudar. Escolha a forma mais conveniente para entrar em contacto.</p>
           
           <div class="contact-methods">
@@ -104,7 +92,7 @@ const contacto = pageItem?.attributes ?? pageItem;
         <!-- Coluna do Formulário -->
         <div class="form-column reveal" style="transition-delay: 0.2s;">
           <div class="form-container">
-        <form id="contact-form" data-strapi={STRAPI}>
+        <form id="contact-form">
           <div class="input-group">
             <input type="text" id="name" name="name" required placeholder=" " />
             <label for="name">Nome Completo</label>
@@ -121,10 +109,10 @@ const contacto = pageItem?.attributes ?? pageItem;
                 <textarea id="message" name="message" rows="4" required placeholder=" "></textarea>
                 <label for="message">Mensagem</label>
               </div>
-              <button type="submit" class="submit-btn">
+              <Button type="submit" class="submit-btn" id="contact-submit">
                 <span>Enviar Mensagem</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-              </button>
+              </Button>
               <div id="form-status" class="form-status"></div>
             </form>
           </div>
@@ -167,16 +155,16 @@ const contacto = pageItem?.attributes ?? pageItem;
   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
   // Lógica real do formulário usando Proxy para evitar CORS
-  const form = document.getElementById('contact-form') as HTMLFormElement;
+  const form = document.getElementById('contact-form');
   const status = document.getElementById('form-status');
 
   if (form && status) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const btn = form.querySelector('.submit-btn') as HTMLButtonElement;
-      const btnSpan = btn.querySelector('span');
+      const btn = document.getElementById('contact-submit') as HTMLButtonElement;
+      const btnSpan = btn?.querySelector('span');
       
-      const formData = new FormData(form);
+      const formData = new FormData(form as HTMLFormElement);
       const data = {
         data: {
           nome: formData.get('name'),
@@ -189,7 +177,7 @@ const contacto = pageItem?.attributes ?? pageItem;
       if (btnSpan) {
         const originalText = btnSpan.innerText;
         btnSpan.innerText = 'A enviar...';
-        btn.disabled = true;
+        (btn as HTMLButtonElement).disabled = true;
 
         // Limpar status anterior
         status.innerText = '';
@@ -208,7 +196,7 @@ const contacto = pageItem?.attributes ?? pageItem;
           if (response.ok) {
             status.innerText = 'Mensagem enviada com sucesso! Entraremos em contacto brevemente.';
             status.className = 'form-status success show';
-            form.reset();
+            (form as HTMLFormElement).reset();
           } else {
             const errorData = await response.json();
             console.error('Erro Detalhado da API:', errorData);
@@ -231,7 +219,7 @@ const contacto = pageItem?.attributes ?? pageItem;
           status.className = 'form-status error show';
         } finally {
           btnSpan.innerText = originalText;
-          btn.disabled = false;
+          (btn as HTMLButtonElement).disabled = false;
           
           setTimeout(() => {
             if (status.classList.contains('success')) {
@@ -316,11 +304,6 @@ const contacto = pageItem?.attributes ?? pageItem;
     grid-template-columns: 1fr 1.2fr;
     gap: 80px;
     align-items: start;
-  }
-
-  .section-title {
-    margin-bottom: 16px;
-    font-size: 2rem;
   }
 
   .section-text {
@@ -430,41 +413,6 @@ const contacto = pageItem?.attributes ?? pageItem;
   .input-group input:focus,
   .input-group textarea:focus {
     border-bottom-color: var(--cor-destaque);
-  }
-
-  .submit-btn {
-    width: 100%;
-    padding: 16px;
-    background: var(--cor-destaque);
-    color: var(--cor-fundo); /* Contraste automático com o fundo do tema */
-    border: none;
-    border-radius: var(--raio);
-    font-size: 1rem;
-    font-weight: 700; /* Aumentado para melhor legibilidade */
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .submit-btn:hover {
-    filter: brightness(1.1);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px var(--cor-destaque-claro);
-  }
-  }
-
-  .submit-btn:hover {
-    filter: brightness(1.1);
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-  }
-
-  .submit-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
   }
 
   .form-status {

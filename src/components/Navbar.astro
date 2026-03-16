@@ -4,57 +4,29 @@
 //   isHome: boolean — se true, os links apontam para secções (#noticias, etc.)
 //                     se false, apontam para a página inicial (/)
 
+import { fetchStrapi, normalize } from "../utils/strapi";
+import { SITE_CONFIG } from "../utils/config";
+
 const { isHome = false } = Astro.props;
 
 const STRAPI = import.meta.env.STRAPI_URL;
 
-let categorias: any[] = [];
-let paginas: any[] = [];
-let noticias: any[] = [];
+const [rawCategorias, rawPaginas, rawNoticias] = await Promise.all([
+  fetchStrapi('categorias', { 'pagination[pageSize]': 20, 'sort': 'nome:asc' }).then(d => d || []),
+  fetchStrapi('paginas', { 'fields': 'titulo,slug', 'sort': 'titulo:asc' }).then(d => d || []),
+  fetchStrapi('noticias', { 'fields': 'titulo,slug', 'pagination[pageSize]': 100, 'sort': 'publishedAt:desc' }).then(d => d || [])
+]);
 
-try {
-  if (STRAPI) {
-    const [catRes, pagRes, notRes] = await Promise.all([
-      fetch(`${STRAPI}/api/categorias?pagination[pageSize]=20&sort=nome:asc`),
-      fetch(`${STRAPI}/api/paginas?fields=titulo,slug&sort=titulo:asc`),
-      fetch(`${STRAPI}/api/noticias?fields=titulo,slug&pagination[pageSize]=100&sort=publishedAt:desc`)
-    ]);
+// Normaliza os dados para facilitar o acesso
+const categorias = normalize(rawCategorias);
+const paginas = normalize(rawPaginas);
+const noticias = normalize(rawNoticias);
 
-    if (catRes.ok) {
-      const json = await catRes.json();
-      categorias = Array.isArray(json?.data) ? json.data : [];
-    }
-
-    if (pagRes.ok) {
-      const json = await pagRes.json();
-      paginas = Array.isArray(json?.data) ? json.data : [];
-    }
-
-    if (notRes.ok) {
-      const json = await notRes.json();
-      noticias = Array.isArray(json?.data) ? json.data : [];
-    }
-  }
-} catch (e) {
-  categorias = [];
-  paginas = [];
-  noticias = [];
-}
-
-// Prepara dados para a pesquisa live (autocomplete)
+// Prepara dados para a contagem de pesquisa silenciosa
 const searchItems = [
-  ...categorias.map(c => {
-    const a = c.attributes ?? c;
-    return { label: a.nome ?? a.name, href: `/categorias/${a.slug ?? c.id}`, type: 'Categoria' };
-  }),
-  ...paginas.map(p => {
-    const a = p.attributes ?? p;
-    return { label: a.titulo, href: `/${a.slug}`, type: 'Página' };
-  }),
-  ...noticias.map(n => {
-    const a = n.attributes ?? n;
-    return { label: a.titulo, href: `/noticias/${a.slug}`, type: 'Notícia' };
-  })
+  ...categorias.map((c: any) => ({ label: c.nome ?? c.name })),
+  ...paginas.map((p: any) => ({ label: p.titulo })),
+  ...noticias.map((n: any) => ({ label: n.titulo }))
 ];
 
 // Estado de autenticação (Cookies)
@@ -66,37 +38,32 @@ const user = Astro.cookies.get('user_name')?.value;
 
     <!-- Logo -->
     <a href="/" class="navbar-logo">
-      Notícias<span>Básicas</span>
+      {SITE_CONFIG.nome.split(' ')[0]}<span>{SITE_CONFIG.nome.split(' ').slice(1).join(' ')}</span>
     </a>
 
     <!-- Links de navegação -->
     <nav class="navbar-nav">
-      <a href={isHome ? "#noticias" : "/#noticias"} class="nav-link">Em Destaque</a>
-      <a href={isHome ? "#ultimas" : "/#ultimas"} class="nav-link">Últimas</a>
+      <a href={isHome ? "#noticias" : "/#noticias"} class="nav-link">{SITE_CONFIG.ui.home.destaque}</a>
+      <a href={isHome ? "#ultimas" : "/#ultimas"} class="nav-link">{SITE_CONFIG.ui.home.ultimas}</a>
 
-      {paginas.filter(p => {
-        const attrs = p.attributes ?? p;
-        return attrs.slug !== 'contacto';
-      }).map(p => {
-        const attrs = p.attributes ?? p;
-        return <a href={`/${attrs.slug}`} class="nav-link">{attrs.titulo}</a>;
-      })}
+      {paginas.filter((p: any) => p.slug !== 'contacto').map((p: any) => (
+        <a href={`/${p.slug}`} class="nav-link">{p.titulo}</a>
+      ))}
 
 
       <!-- Dropdown Categorias -->
       {categorias.length > 0 && (
         <div class="nav-dropdown" id="cat-dropdown">
           <button class="nav-link nav-dropdown-btn" id="cat-btn" aria-haspopup="true" aria-expanded="false">
-            Categorias
+            {SITE_CONFIG.ui.common.categorias}
             <svg class="dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="6 9 12 15 18 9"/>
             </svg>
           </button>
           <div class="dropdown-menu" id="cat-menu" role="menu">
             {categorias.map((cat: any) => {
-              const attrs = cat.attributes ?? cat;
-              const slug = attrs.slug ?? cat.id;
-              const nome = attrs.nome ?? attrs.name ?? slug;
+              const slug = cat.slug ?? cat.id;
+              const nome = cat.nome ?? cat.name ?? slug;
               return (
                 <a href={`/categorias/${slug}`} class="dropdown-item" role="menuitem">{nome}</a>
               );
@@ -105,28 +72,30 @@ const user = Astro.cookies.get('user_name')?.value;
         </div>
       )}
 
-      <a href="/contacto" class="nav-link">Contacto</a>
+      <a href="/contacto" class="nav-link">{SITE_CONFIG.ui.common.contacto}</a>
       
       {user ? (
         <div class="nav-dropdown" id="user-dropdown">
-          <button class="nav-link nav-dropdown-btn" id="user-btn" aria-haspopup="true" aria-expanded="false">
-            <svg class="profile-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-            </svg>
-            {user}
+          <button class="nav-link nav-dropdown-btn user-profile-btn" id="user-btn" aria-haspopup="true" aria-expanded="false">
+            <div class="nav-profile-photo" id="nav-profile-photo">
+              <svg class="profile-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+            <span class="nav-user-name">{user}</span>
           </button>
           <div class="dropdown-menu" id="user-menu" role="menu">
-            <a href="/perfil" class="dropdown-item">Preferências</a>
-            <button id="logout-btn" class="dropdown-item logout-item">Sair</button>
+            <a href="/perfil#preferencias" class="dropdown-item">Preferências</a>
+            <a href="/perfil#tema" class="dropdown-item">Tema</a>
+            <a href="/perfil#guardados" class="dropdown-item">Guardados</a>
+            <button id="logout-btn" class="dropdown-item logout-item">{SITE_CONFIG.ui.auth.sair}</button>
           </div>
         </div>
       ) : (
-        <a href="/login" class="nav-link login-link">
-          <svg class="profile-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line>
-          </svg>
-          Entrar
-        </a>
+        <div class="nav-auth">
+          <a href="/login" class="nav-link nav-link--login">{SITE_CONFIG.ui.auth.entrar}</a>
+          <a href="/registo" class="nav-link nav-btn">{SITE_CONFIG.ui.auth.registar}</a>
+        </div>
       )}
     </nav>
 
@@ -137,15 +106,17 @@ const user = Astro.cookies.get('user_name')?.value;
         <input
           type="text"
           id="pesquisa-input"
-          placeholder="Pesquisar..."
+          placeholder={SITE_CONFIG.ui.search.placeholder}
           class="search-input"
           autocomplete="off"
         />
-        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"/>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <div class="search-results-dropdown" id="results-desktop"></div>
+        <span id="search-count-desktop" class="search-count"></span>
+        <button id="search-btn-desktop" class="search-btn" aria-label="Pesquisar">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </button>
       </div>
     
       
@@ -161,31 +132,26 @@ const user = Astro.cookies.get('user_name')?.value;
 
   <!-- Nav mobile -->
   <div class="navbar-mobile" id="mobile-menu">
-    <a href={isHome ? "#noticias" : "/#noticias"} class="nav-link-mobile">Em Destaque</a>
-    <a href={isHome ? "#ultimas" : "/#ultimas"} class="nav-link-mobile">Últimas</a>
+    <a href={isHome ? "#noticias" : "/#noticias"} class="nav-link-mobile">{SITE_CONFIG.ui.home.destaque}</a>
+    <a href={isHome ? "#ultimas" : "/#ultimas"} class="nav-link-mobile">{SITE_CONFIG.ui.home.ultimas}</a>
 
-    {paginas.filter(p => {
-      const attrs = p.attributes ?? p;
-      return attrs.slug !== 'contacto';
-    }).map(p => {
-      const attrs = p.attributes ?? p;
-      return <a href={`/${attrs.slug}`} class="nav-link-mobile">{attrs.titulo}</a>;
-    })}
+    {paginas.filter((p: any) => p.slug !== 'contacto').map((p: any) => (
+      <a href={`/${p.slug}`} class="nav-link-mobile">{p.titulo}</a>
+    ))}
 
     <!-- Categorias mobile (acordeão) -->
     {categorias.length > 0 && (
       <div class="mobile-cat-section">
         <button class="nav-link-mobile mobile-cat-btn" id="mobile-cat-btn">
-          Categorias
+          {SITE_CONFIG.ui.common.categorias}
           <svg class="dropdown-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </button>
         <div class="mobile-cat-list" id="mobile-cat-list">
           {categorias.map((cat: any) => {
-            const attrs = cat.attributes ?? cat;
-            const slug = attrs.slug ?? cat.id;
-            const nome = attrs.nome ?? attrs.name ?? slug;
+            const slug = cat.slug ?? cat.id;
+            const nome = cat.nome ?? cat.name ?? slug;
             return (
               <a href={`/categorias/${slug}`} class="nav-link-mobile nav-link-mobile--sub">{nome}</a>
             );
@@ -194,49 +160,47 @@ const user = Astro.cookies.get('user_name')?.value;
       </div>
     )}
  
-    <a href="/contacto" class="nav-link-mobile">Contacto</a>
+    <a href="/contacto" class="nav-link-mobile">{SITE_CONFIG.ui.common.contacto}</a>
     
     {user ? (
       <>
         <a href="/perfil" class={`nav-link-mobile ${Astro.url.pathname === '/perfil' ? 'ativo' : ''}`}>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <svg class="profile-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-            </svg>
-            O Meu Perfil ({user})
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="nav-profile-photo nav-profile-photo--mobile">
+              <svg class="profile-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+            {SITE_CONFIG.ui.auth.perfil} ({user})
           </div>
         </a>
-        <button id="logout-btn-mobile" class="nav-link-mobile" style="width: 100%; border: none; background: none; cursor: pointer; justify-content: flex-start;">
-          <svg style="margin-right: 8px;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>
-          </svg>
-          Sair
-        </button>
+        <a href="/perfil#preferencias" class="nav-link-mobile">Preferências</a>
+        <a href="/perfil#tema" class="nav-link-mobile">Tema</a>
+        <a href="/perfil#guardados" class="nav-link-mobile">Guardados</a>
+        <button id="logout-btn-mobile" class="nav-link-mobile logout-item-mobile">{SITE_CONFIG.ui.auth.sair}</button>
       </>
     ) : (
-      <a href="/login" class="nav-link-mobile">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <svg class="profile-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line>
-          </svg>
-          Entrar / Registar
-        </div>
-      </a>
+      <div class="nav-auth-mobile">
+        <a href="/login" class="nav-link-mobile">{SITE_CONFIG.ui.auth.entrar}</a>
+        <a href="/registo" class="nav-link-mobile nav-btn-mobile">{SITE_CONFIG.ui.auth.registar}</a>
+      </div>
     )}
     
     <div class="mobile-search" id="navbar-search-mobile">
-      <input
-        type="text"
-        id="pesquisa-input-mobile"
-        placeholder="Pesquisar..."
-        class="search-input"
-        autocomplete="off"
-      />
-      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"/>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-      </svg>
-      <div class="search-results-dropdown" id="results-mobile"></div>
+        <input
+          type="text"
+          id="pesquisa-input-mobile"
+          placeholder={SITE_CONFIG.ui.search.placeholder}
+          class="search-input"
+          autocomplete="off"
+        />
+        <span id="search-count-mobile" class="search-count"></span>
+      <button id="search-btn-mobile" class="search-btn" aria-label="Pesquisar">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </button>
     </div>
   </div>
 </header>
@@ -315,6 +279,75 @@ const user = Astro.cookies.get('user_name')?.value;
   .nav-link.ativo {
     color: var(--cor-principal);
     background: var(--cor-destaque-claro);
+  }
+
+  /* Auth Buttons */
+  .nav-auth {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: 8px;
+  }
+
+  .nav-link--login {
+    color: var(--cor-principal) !important;
+    opacity: 0.8;
+  }
+
+  .nav-link--login:hover {
+    opacity: 1;
+    background: transparent !important;
+    text-decoration: underline;
+  }
+
+  .nav-btn {
+    background: var(--cor-destaque) !important;
+    color: var(--cor-fundo) !important;
+    padding: 8px 18px !important;
+    font-weight: 600 !important;
+    transition: transform 0.2s, filter 0.2s !important;
+  }
+
+  .nav-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.1);
+    background: var(--cor-destaque) !important;
+  }
+
+  /* Perfil na Navbar */
+  .user-profile-btn {
+    padding-left: 6px !important;
+  }
+
+  .nav-profile-photo {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--cor-destaque-claro);
+    border: 1.5px solid var(--cor-destaque);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .nav-profile-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .nav-profile-photo--mobile {
+    width: 32px;
+    height: 32px;
+  }
+
+  .nav-user-name {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .perfil-link {
@@ -469,67 +502,8 @@ const user = Astro.cookies.get('user_name')?.value;
   .navbar-search {
     position: relative;
     flex-shrink: 0;
-  }
-
-  .search-results-dropdown {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
-    width: 320px;
-    max-height: 400px;
-    overflow-y: auto;
-    background: rgba(18, 18, 18, 0.98);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 8px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
-    display: none;
-    flex-direction: column;
-    gap: 4px;
-    z-index: 1000;
-  }
-
-  .search-results-dropdown.active {
     display: flex;
-  }
-
-  .search-result-item {
-    display: flex;
-    flex-direction: column;
-    padding: 10px 14px;
-    border-radius: 8px;
-    text-decoration: none;
-    transition: background 0.2s;
-  }
-
-  .search-result-item:hover {
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-  .search-result-label {
-    color: var(--cor-principal);
-    font-size: 0.88rem;
-    font-weight: 500;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .search-result-type {
-    color: var(--cor-destaque, #c8963e);
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 2px;
-  }
-
-  .search-no-results {
-    padding: 16px;
-    color: var(--cor-texto-suave);
-    font-size: 0.85rem;
-    text-align: center;
-    font-style: italic;
+    align-items: center;
   }
 
   .search-input {
@@ -537,7 +511,7 @@ const user = Astro.cookies.get('user_name')?.value;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 20px;
-    padding: 7px 14px 7px 36px;
+    padding: 7px 60px 7px 14px; /* Aumentado de 36px para 60px para dar espaço ao contador e lupa */
     color: var(--cor-principal);
     font-size: 0.83rem;
     width: 180px;
@@ -552,15 +526,48 @@ const user = Astro.cookies.get('user_name')?.value;
   .search-input:focus {
     border-color: var(--cor-destaque, #c8963e);
     background: rgba(255, 255, 255, 0.08);
-    width: 220px;
+    width: 240px; /* Aumentado ligeiramente para acomodar o contador */
+  }
+
+  .search-count {
+    position: absolute;
+    right: 38px; /* Posicionado entre o texto e a lupa */
+    font-size: 0.75rem;
+    color: var(--cor-destaque);
+    font-weight: 700;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .search-count.active {
+    opacity: 1;
+  }
+
+  .search-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cor-texto-suave, #888);
+    transition: color 0.2s;
+  }
+
+  .search-btn:hover {
+    color: var(--cor-destaque);
   }
 
   .search-icon {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--cor-texto-suave, #888);
     pointer-events: none;
   }
 
@@ -624,6 +631,27 @@ const user = Astro.cookies.get('user_name')?.value;
 
   .nav-link-mobile.ativo {
     border-left: 3px solid var(--cor-destaque);
+  }
+
+  /* Auth Mobile */
+  .nav-auth-mobile {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    margin-top: 4px;
+  }
+
+  .nav-auth-mobile .nav-link-mobile {
+    flex: 1;
+    justify-content: center;
+    font-size: 0.85rem;
+    padding: 12px;
+  }
+
+  .nav-btn-mobile {
+    background: var(--cor-destaque) !important;
+    color: var(--cor-fundo) !important;
+    font-weight: 700;
   }
 
   /* Categorias mobile */
@@ -709,7 +737,7 @@ const user = Astro.cookies.get('user_name')?.value;
   }
 </style>
 
-<script define:vars={{ searchItems }}>
+<script>
   // Burger menu toggle
   const burger = document.getElementById("burger-btn");
   const mobileMenu = document.getElementById("mobile-menu");
@@ -735,7 +763,7 @@ const user = Astro.cookies.get('user_name')?.value;
   const userBtn = document.getElementById("user-btn");
   const userDropdown = document.getElementById("user-dropdown");
 
-  function toggleDropdown(btn, dropdown) {
+  function toggleDropdown(btn: HTMLElement | null, dropdown: HTMLElement | null) {
     if (!btn || !dropdown) return;
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -766,14 +794,12 @@ const user = Astro.cookies.get('user_name')?.value;
 
   // Fechar dropdown ao clicar fora
   document.addEventListener("click", (e) => {
-    if (!catDropdown?.contains(e.target) && !userDropdown?.contains(e.target)) {
+    if (!catDropdown?.contains(e.target as Node) && !userDropdown?.contains(e.target as Node)) {
       catDropdown?.classList.remove("aberto");
       catBtn?.setAttribute("aria-expanded", "false");
       userDropdown?.classList.remove("aberto");
       userBtn?.setAttribute("aria-expanded", "false");
     }
-    // Fechar pesquisa ao clicar fora
-    document.querySelectorAll('.search-results-dropdown').forEach(d => d.classList.remove('active'));
   });
 
   // Fechar dropdown ao pressionar Escape
@@ -783,7 +809,6 @@ const user = Astro.cookies.get('user_name')?.value;
       catBtn?.setAttribute("aria-expanded", "false");
       userDropdown?.classList.remove("aberto");
       userBtn?.setAttribute("aria-expanded", "false");
-      document.querySelectorAll('.search-results-dropdown').forEach(d => d.classList.remove('active'));
     }
   });
 
@@ -795,8 +820,10 @@ const user = Astro.cookies.get('user_name')?.value;
     mobileCatBtn.classList.toggle("aberto");
     mobileCatList?.classList.toggle("aberto");
   });
+</script>
 
-  // Pesquisa Live
+<script define:vars={{ searchItems }}>
+  // Pesquisa Direta com Contador Silencioso
   function normalizar(str) {
     return (str || "")
       .toLowerCase()
@@ -804,54 +831,74 @@ const user = Astro.cookies.get('user_name')?.value;
       .replace(/[\u0300-\u036f]/g, "");
   }
 
-  function setupSearch(inputId, resultsId) {
+  function setupSearch(inputId, buttonId, countId) {
     const input = document.getElementById(inputId);
-    const results = document.getElementById(resultsId);
-    if (!input || !results) return;
+    const button = document.getElementById(buttonId);
+    const countEl = document.getElementById(countId);
+    if (!input || !button || !countEl) return;
 
+    const performSearch = () => {
+      const q = input.value.trim();
+      if (q) {
+        window.location.href = `/pesquisa?q=${encodeURIComponent(q)}`;
+      }
+    };
+
+    // Atualiza contador ao escrever
     input.addEventListener("input", () => {
       const q = normalizar(input.value.trim());
       if (q.length < 2) {
-        results.classList.remove("active");
-        results.innerHTML = "";
+        countEl.classList.remove("active");
+        countEl.textContent = "";
         return;
       }
 
-      const filtered = searchItems
-        .filter(item => normalizar(item.label).includes(q))
-        .slice(0, 8); // Limite de 8 resultados
+      const total = searchItems.filter(item => 
+        normalizar(item.label).includes(q)
+      ).length;
 
-      if (filtered.length > 0) {
-        results.innerHTML = filtered
-          .map(item => `
-            <a href="${item.href}" class="search-result-item">
-              <span class="search-result-type">${item.type}</span>
-              <span class="search-result-label">${item.label}</span>
-            </a>
-          `)
-          .join("");
-        results.classList.add("active");
+      if (total > 0) {
+        countEl.textContent = total;
+        countEl.classList.add("active");
       } else {
-        results.innerHTML = `<div class="search-no-results">Nenhum resultado encontrado para "${input.value}"</div>`;
-        results.classList.add("active");
+        countEl.textContent = "0";
+        countEl.classList.add("active");
       }
     });
+
+    button.addEventListener('click', performSearch);
 
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
-        const q = input.value.trim();
-        if (q) {
-          window.location.href = `/pesquisa?q=${encodeURIComponent(q)}`;
-        }
+        performSearch();
       }
     });
-
-    // Impedir que cliques no dropdown fechem o próprio dropdown (devido ao listener global)
-    results.addEventListener("click", (e) => e.stopPropagation());
   }
 
-  setupSearch("pesquisa-input", "results-desktop");
-  setupSearch("pesquisa-input-mobile", "results-mobile");
+  setupSearch("pesquisa-input", "search-btn-desktop", "search-count-desktop");
+  setupSearch("pesquisa-input-mobile", "search-btn-mobile", "search-count-mobile");
+
+  // Atualizar fotos de perfil na Navbar (Vinculada ao Utilizador)
+  const getCookie = (name) => {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(";");
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i];
+      while (c.charAt(0) === " ") c = c.substring(1, c.length);
+      if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+    }
+    return null;
+  };
+
+  const currentUser = getCookie('user_name');
+  const photoKey = currentUser ? `profile-photo-${currentUser}` : 'profile-photo-guest';
+  const savedPhoto = localStorage.getItem(photoKey);
+
+  if (savedPhoto) {
+    document.querySelectorAll('.nav-profile-photo').forEach(container => {
+      container.innerHTML = `<img src="${savedPhoto}" alt="Foto de Perfil" />`;
+    });
+  }
 
   // Lógica de Toggle de Tema (Dourado vs P&B)
   const themeToggle = document.getElementById('theme-toggle');

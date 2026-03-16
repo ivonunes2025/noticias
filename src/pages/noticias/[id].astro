@@ -6,15 +6,18 @@ export const prerender = false;
 import Layout from "../../layouts/Layout.astro";
 import Navbar from "../../components/Navbar.astro";
 import CardNoticia from "../../components/CardNoticia.astro";
-import { getRichText, getImageUrl, formatDate } from "../../utils/strapi";
+import { getRichText, getImageUrl, formatDate, isNewsPrivate, checkAuth } from "../../utils/strapi";
+import PrivateOverlay from "../../components/PrivateOverlay.astro";
+import ShareMenu from "../../components/ShareMenu.astro";
+import ReadingProgressBar from "../../components/ReadingProgressBar.astro";
+import AudioReader from "../../components/AudioReader.astro";
 
 // URL base do Strapi e slug recebido pela rota
 const STRAPI = import.meta.env.STRAPI_URL;
 const { id } = Astro.params;
 
-// 1. Estado de autenticação
-const userCookie = Astro.cookies.get('user_name');
-const isAuthenticated = !!userCookie?.value;
+// 1. Estado de autenticação usando helper
+const isAuthenticated = checkAuth(Astro.cookies);
 
 // 2. Busca a notícia primeiro para saber se é privada
 const res = await fetch(
@@ -25,10 +28,8 @@ const res = await fetch(
 const noticiaRaw = res.data?.[0];
 const noticia = noticiaRaw?.attributes ?? noticiaRaw;
 
-// 3. BLOQUEIO CRÍTICO: Se for privada e não houver login, redireciona IMEDIATAMENTE
-// Verificamos tanto 'Privadas' (com P maiúsculo) como 'privadas' para garantir
-const isPrivate = noticia?.Privadas === true || noticia?.Privadas === "true" || 
-                  noticia?.privadas === true || noticia?.privadas === "true";
+// 3. BLOQUEIO CRÍTICO: Se for privada e não houver login
+const isPrivate = isNewsPrivate(noticia);
 
 // Removido o Astro.redirect automático para permitir mostrar o "Preview Bloqueado"
 const showLockScreen = isPrivate && !isAuthenticated;
@@ -65,6 +66,7 @@ if (noticia) {
 ---
 
 <Layout titulo={noticia?.titulo}>
+  {!showLockScreen && <ReadingProgressBar />}
   <Navbar isHome={false} />
 
   {/* ── Bloqueio Visual para Notícias Privadas ── */}
@@ -85,14 +87,7 @@ if (noticia) {
             />
           )}
           <div class="lock-overlay">
-            <div class="lock-icon-circle">
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                <line x1="1" y1="1" x2="23" y2="23"></line>
-              </svg>
-            </div>
-            <h2>Conteúdo Privado</h2>
-            <p>Esta notícia é exclusiva para membros registados.</p>
+            <PrivateOverlay variant="full" />
             
             {/* Botão de Login Bem Visível */}
             <div class="auth-cta-wrapper">
@@ -122,7 +117,8 @@ if (noticia) {
         !noticia && (
           <section class="detalhe">
             <h1>Notícia não encontrada</h1>
-            <p>O slug passado foi “{id}”. Verifique o conteúdo no Strapi.</p>
+            <p>Verifique se o link está correto ou se a notícia foi removida.</p>
+            <a href="/">Voltar</a>
           </section>
         )
       }
@@ -143,7 +139,13 @@ if (noticia) {
 
         {
           noticia?.publishedAt && (
-            <span class="detalhe-data">{formatDate(noticia.publishedAt)}</span>
+            <div class="meta-header">
+              <div class="meta-left">
+                <span class="detalhe-data">{formatDate(noticia.publishedAt)}</span>
+                <AudioReader />
+              </div>
+              <ShareMenu />
+            </div>
           )
         }
 
@@ -208,8 +210,21 @@ if (noticia) {
     color: var(--cor-destaque);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 12px;
     font-weight: 600;
+  }
+
+  .meta-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    gap: 20px;
+  }
+
+  .meta-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
   }
 
   h1 {
@@ -253,35 +268,7 @@ if (noticia) {
     align-items: center;
     justify-content: center;
     padding: 40px;
-    text-align: center;
     z-index: 10;
-  }
-
-  .lock-icon-circle {
-    width: 80px;
-    height: 80px;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(8px);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #c8963e; /* Amarelo/Dourado fixo */
-    margin-bottom: 24px;
-    border: 2px solid #c8963e; /* Apenas o contorno */
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  }
-
-  .lock-overlay h2 {
-    color: white;
-    font-family: var(--fonte-titulo);
-    font-size: 2rem;
-    margin-bottom: 16px; /* Aumentado de 8px para 16px para dar mais espaço */
-  }
-
-  .lock-overlay p {
-    color: rgba(255, 255, 255, 0.8);
-    margin-bottom: 32px;
   }
 
   .login-redirect-btn {
@@ -313,6 +300,8 @@ if (noticia) {
   }
 
   .auth-cta-wrapper {
+    margin-top: 32px;
+    z-index: 20;
     display: flex;
     flex-direction: column;
     align-items: center;

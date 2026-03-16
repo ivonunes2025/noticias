@@ -1,71 +1,62 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
+import { getCategorias } from "../utils/strapi";
 
-const STRAPI = import.meta.env.STRAPI_URL;
+const user = Astro.cookies.get('user_name')?.value;
+if (!user) return Astro.redirect('/login');
 
-let categorias: any[] = [];
-
-try {
-  if (STRAPI) {
-    const res = await fetch(`${STRAPI}/api/categorias?pagination[pageSize]=100&sort=nome:asc`);
-    if (res.ok) {
-      const json = await res.json();
-      categorias = Array.isArray(json?.data) ? json.data : [];
-    }
-  }
-} catch (e) {
-  categorias = [];
-}
+const categorias = await getCategorias();
 ---
 
-<Layout titulo="O Meu Perfil | Notícias Básicas">
-  <Navbar />
+<Layout titulo="O Meu Perfil">
+  <Navbar isHome={false} />
 
-  <main class="perfil-container">
+  <div class="perfil-container">
     <header class="perfil-header">
-      <div class="perfil-icon-large">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-        </svg>
+      <div class="profile-photo-wrapper">
+        <div class="perfil-icon-large" id="profile-preview">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <label for="profile-upload" class="photo-edit-btn" title="Alterar foto de perfil">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+          </svg>
+        </label>
+        <input type="file" id="profile-upload" accept="image/*" hidden />
       </div>
       <h1>O Meu Perfil</h1>
-      <p>Personalize a sua experiência escolhendo as categorias que mais gosta.</p>
+      <p>Personalize a sua experiência e a sua identidade no site.</p>
     </header>
 
-    <section class="categorias-selection">
-      <h2>Categorias Favoritas</h2>
-      <p class="instruction">Selecione as categorias para as quais deseja receber mais destaque:</p>
-      
-      <div class="categorias-grid" id="categorias-grid">
-        {categorias.map((cat: any) => {
-          const attrs = cat.attributes ?? cat;
-          const slug = attrs.slug ?? cat.id;
-          const nome = attrs.nome ?? attrs.name ?? slug;
-          return (
-            <button 
-              class="categoria-card" 
-              data-slug={slug}
-              aria-pressed="false"
-            >
-              <span class="check-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-              </span>
-              <span class="categoria-nome">{nome}</span>
-            </button>
-          );
-        })}
-      </div>
+    <div class="perfil-content">
+      <section class="categorias-selection" id="preferencias">
+        <h2>Categorias Favoritas</h2>
+        <p class="instruction">Selecione as categorias para as quais deseja receber mais destaque:</p>
+        
+        <div class="categorias-grid">
+          {categorias.map((cat: any) => {
+            const attrs = cat.attributes ?? cat;
+            const slug = attrs.slug ?? cat.id;
+            const nome = attrs.nome ?? attrs.name ?? slug;
+            return (
+              <label class="categoria-chip">
+                <input type="checkbox" name="categorias" value={slug} />
+                <span class="chip-text">{nome}</span>
+              </label>
+            );
+          })}
+        </div>
+        
+        <div class="save-actions">
+          <button id="save-prefs" class="save-button">Guardar Preferências</button>
+          <span id="status-msg" class="status-msg"></span>
+        </div>
+      </section>
 
-      <div class="actions">
-        <button id="save-btn" class="save-button">Guardar Preferências</button>
-        <div id="status-msg" class="status-message"></div>
-      </div>
-    </section>
-
-    <section class="tema-selection">
+    <section class="tema-selection" id="tema">
       <h2>Tema Visual</h2>
       <p class="instruction">Escolha a aparência que mais lhe agrada para navegar no site:</p>
       
@@ -80,357 +71,199 @@ try {
           </button>
         </div>
     </section>
+
+    <section class="perfil-section" id="guardados">
+      <div class="section-header">
+        <div class="section-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </div>
+        <h2>Ler Depois</h2>
+      </div>
+      <p class="instruction">Notícias que guardou para ler com mais calma.</p>
+      
+      <div id="saved-news-container" class="saved-news-grid">
+        <!-- Preenchido via JavaScript -->
+      </div>
+    </section>
   </main>
 </Layout>
 
-<style>
-  .perfil-container {
-    max-width: 800px;
-    margin: 40px auto 80px;
-    padding: 0 24px;
-    animation: fadeIn 0.5s ease-out;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .perfil-header {
-    text-align: center;
-    margin-bottom: 48px;
-  }
-
-  .perfil-icon-large {
-    width: 80px;
-    height: 80px;
-    background: var(--cor-destaque-claro, rgba(200, 150, 62, 0.1));
-    color: var(--cor-destaque, #c8963e);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 20px;
-    border: 2px solid var(--cor-destaque);
-  }
-
-  .perfil-header h1 {
-    font-family: var(--fonte-titulo);
-    font-size: 2.5rem;
-    margin-bottom: 12px;
-    color: var(--cor-principal);
-  }
-
-  .perfil-header p {
-    color: var(--cor-texto-suave);
-    font-size: 1.1rem;
-  }
-
-  .categorias-selection {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--cor-borda, rgba(255, 255, 255, 0.1));
-    border-radius: 24px;
-    padding: 32px;
-    margin-bottom: 32px; /* Adicionado espaço para a próxima secção */
-  }
-
-  /* ── Estilos da Seleção de Tema ── */
-  .tema-selection {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--cor-borda, rgba(255, 255, 255, 0.1));
-    border-radius: 24px;
-    padding: 32px;
-  }
-
-  .tema-selection h2 {
-    font-family: var(--fonte-titulo);
-    font-size: 1.5rem;
-    margin-bottom: 16px; /* Aumentado para dar mais espaço ao texto de baixo */
-    color: var(--cor-principal);
-  }
-
-  .temas-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 16px;
-    margin-top: 24px;
-  }
-
-  .tema-card {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    color: var(--cor-texto-suave);
-    width: 100%;
-  }
-
-  .tema-card:hover {
-    background: rgba(255, 255, 255, 0.08);
-    transform: translateY(-4px);
-  }
-
-  .tema-card.active {
-    border-color: var(--cor-destaque);
-    background: var(--cor-destaque-claro);
-    color: var(--cor-principal);
-    box-shadow: 0 0 20px var(--cor-destaque-claro);
-  }
-
-  .tema-preview {
-    width: 100%;
-    aspect-ratio: 16/9;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .theme-default { background: linear-gradient(135deg, #0a0a0a 0%, #c8963e 100%); }
-  .theme-dark { background: linear-gradient(135deg, #000000 0%, #333333 100%); }
-
-  .save-button {
-    color: var(--cor-texto-suave);
-    margin-bottom: 24px;
-    font-size: 0.95rem;
-  }
-
-  .categorias-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 12px;
-    margin-bottom: 40px;
-  }
-
-  .categoria-card {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-align: left;
-    color: var(--cor-texto-suave);
-  }
-
-  .categoria-card:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.2);
-    transform: translateY(-2px);
-  }
-
-  .categoria-card.selected {
-    background: var(--cor-destaque-claro, rgba(200, 150, 62, 0.15));
-    border-color: var(--cor-destaque, #c8963e);
-    color: var(--cor-principal);
-  }
-
-  .check-icon {
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
-  }
-
-  .categoria-card.selected .check-icon {
-    background: var(--cor-destaque);
-    border-color: var(--cor-destaque);
-    color: var(--cor-fundo); /* Usa a cor de fundo para contrastar com o destaque (especialmente no tema P&B) */
-  }
-
-  .check-icon svg {
-    opacity: 0;
-    transform: scale(0.5);
-    transition: all 0.2s ease;
-  }
-
-  .categoria-card.selected .check-icon svg {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  .categoria-nome {
-    font-weight: 500;
-    font-size: 0.95rem;
-    text-transform: capitalize;
-  }
-
-  .actions {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    padding-top: 32px;
-  }
-
-  .save-button {
-    background: var(--cor-destaque);
-    color: var(--cor-fundo); /* Contraste automático com o tema */
-    border: none;
-    border-radius: 12px;
-    padding: 16px 40px;
-    font-size: 1rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 15px var(--cor-destaque-claro);
-  }
-
-  .save-button:hover {
-    filter: brightness(1.1);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px var(--cor-destaque-claro);
-  }
-
-  .save-button:active {
-    transform: translateY(0);
-  }
-
-  .status-message {
-    font-size: 0.9rem;
-    height: 20px;
-    transition: all 0.3s ease;
-  }
-
-  .status-message.success {
-    color: #4caf50;
-  }
-
-  @media (max-width: 600px) {
-    .perfil-header h1 {
-      font-size: 2rem;
-    }
-    .categorias-grid {
-      grid-template-columns: 1fr 1fr;
-    }
-    .categorias-selection {
-      padding: 24px 16px;
-    }
-  }
-</style>
-
 <script>
-  import { setCookie, getCookie } from "../utils/cookies";
+  // Funções de Cookies
+  function getCookie(name: string) {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(";");
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i];
+      while (c.charAt(0) === " ") c = c.substring(1, c.length);
+      if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+    }
+    return null;
+  }
 
-  const grid = document.getElementById('categorias-grid');
-  const saveBtn = document.getElementById('save-btn');
+  // ── Lógica de Foto de Perfil (Vinculada ao Utilizador) ──
+  const photoInput = document.getElementById('profile-upload') as HTMLInputElement;
+  const photoPreview = document.getElementById('profile-preview');
   const statusMsg = document.getElementById('status-msg');
   
-  // Carregar preferências salvas (tenta cookies primeiro, depois localStorage para migração se necessário)
-  const cookiePrefs = getCookie('preferencias-categorias');
-  let selectedCategories: string[] = [];
-  
-  if (cookiePrefs) {
-    try {
-      const parsed = JSON.parse(cookiePrefs);
-      if (Array.isArray(parsed)) selectedCategories = parsed;
-    } catch(e) { selectedCategories = []; }
-  } else {
-    // Tenta carregar do localStorage se o cookie ainda não existir (migração)
-    try {
-      const stored = localStorage.getItem('preferencias-categorias');
-      const parsed = stored ? JSON.parse(stored) : null;
-      if (Array.isArray(parsed)) selectedCategories = parsed;
-    } catch(e) { selectedCategories = []; }
+  // Obtém o nome do utilizador atual para vincular a foto
+  const currentUser = getCookie('user_name');
+  const photoKey = currentUser ? `profile-photo-${currentUser}` : 'profile-photo-guest';
+
+  // Carregar foto salva para ESTE utilizador
+  const savedPhoto = localStorage.getItem(photoKey);
+  if (savedPhoto && photoPreview) {
+    photoPreview.innerHTML = `<img src="${savedPhoto}" alt="Foto de Perfil" />`;
   }
 
-  // Marcar as categorias já selecionadas
-  document.querySelectorAll('.categoria-card').forEach(card => {
-    const slug = card.getAttribute('data-slug');
-    if (slug && selectedCategories.includes(slug)) {
-      card.classList.add('selected');
-      card.setAttribute('aria-pressed', 'true');
-    }
-
-    // Toggle ao clicar
-    card.addEventListener('click', () => {
-      const isSelected = card.classList.toggle('selected');
-      card.setAttribute('aria-pressed', String(isSelected));
-      
-      const slug = card.getAttribute('data-slug');
-      if (slug) {
-        if (isSelected) {
-          if (!selectedCategories.includes(slug)) {
-            selectedCategories.push(slug);
+  photoInput?.addEventListener('change', (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        if (photoPreview) {
+          photoPreview.innerHTML = `<img src="${base64}" alt="Foto de Perfil" />`;
+          // Salva no localStorage com a chave única do utilizador
+          localStorage.setItem(photoKey, base64);
+          
+          if (statusMsg) {
+            statusMsg.textContent = 'Foto atualizada!';
+            statusMsg.classList.add('success');
+            setTimeout(() => {
+              statusMsg.textContent = '';
+              statusMsg.classList.remove('success');
+            }, 2000);
           }
-        } else {
-          selectedCategories = selectedCategories.filter((s) => s !== slug);
         }
-      }
-    });
+      };
+      reader.readAsDataURL(file);
+    }
   });
 
-  // Guardar preferências em Cookies (válido por 365 dias)
+  // ── Lógica de Categorias ──
+  const saveBtn = document.getElementById('save-prefs');
+  const checkboxes = document.querySelectorAll('input[name="categorias"]') as NodeListOf<HTMLInputElement>;
+
+  // Carregar guardadas
+  const userPrefs = localStorage.getItem(`prefs-${currentUser}`);
+  if (userPrefs) {
+    const savedCats = JSON.parse(userPrefs);
+    checkboxes.forEach((cb) => {
+      if (savedCats.includes(cb.value)) cb.checked = true;
+    });
+  }
+
   saveBtn?.addEventListener('click', () => {
-    const jsonStr = JSON.stringify(selectedCategories);
-    setCookie('preferencias-categorias', jsonStr, 365);
-    localStorage.setItem('preferencias-categorias', jsonStr); // Mantém no localStorage por redundância
+    const selected = Array.from(checkboxes)
+      .filter((cb) => cb.checked)
+      .map((cb) => cb.value);
+    
+    localStorage.setItem(`prefs-${currentUser}`, JSON.stringify(selected));
     
     if (statusMsg) {
-      statusMsg.textContent = 'Preferências guardadas com sucesso!';
+      statusMsg.textContent = 'Preferências guardadas!';
       statusMsg.classList.add('success');
-      
-      saveBtn.textContent = 'Guardado!';
-      
       setTimeout(() => {
         statusMsg.textContent = '';
         statusMsg.classList.remove('success');
-        saveBtn.textContent = 'Guardar Preferências';
-      }, 3000);
+      }, 2000);
     }
   });
 
   // ── Lógica de Temas ──
-  const temaCards = document.querySelectorAll('.tema-card');
-  const currentTheme = getCookie('theme') || localStorage.getItem('theme') || 'default';
-
-  // Marcar o tema atual como ativo
-  temaCards.forEach(card => {
-    const cardTheme = card.getAttribute('data-theme');
-    if (cardTheme === currentTheme) {
+  const themeCards = document.querySelectorAll('.tema-card');
+  
+  // Marcar ativo
+  const currentTheme = localStorage.getItem('theme') || 'default';
+  themeCards.forEach(card => {
+    if (card.getAttribute('data-theme') === currentTheme) {
       card.classList.add('active');
     }
+  });
 
+  themeCards.forEach(card => {
     card.addEventListener('click', () => {
-      const newTheme = card.getAttribute('data-theme');
-      if (!newTheme) return;
+      const theme = card.getAttribute('data-theme');
+      if (!theme) return;
 
-      // Se for o tema "default", removemos o atributo data-theme do root (para usar o :root base)
-      if (newTheme === 'default') {
+      // Aplicar visualmente
+      if (theme === 'default') {
         document.documentElement.removeAttribute('data-theme');
       } else {
-        document.documentElement.setAttribute('data-theme', newTheme);
+        document.documentElement.setAttribute('data-theme', theme);
       }
 
-      // Atualiza UI
-      temaCards.forEach(c => c.classList.remove('active'));
+      // Atualizar UI
+      themeCards.forEach(c => c.classList.remove('active'));
       card.classList.add('active');
-      
-      // Guarda nos cookies e localStorage
-      setCookie('theme', newTheme, 365);
-      localStorage.setItem('theme', newTheme);
 
-      if (statusMsg) {
-        statusMsg.textContent = `Tema aplicado com sucesso!`;
-        statusMsg.classList.add('success');
-        setTimeout(() => {
-          statusMsg.textContent = '';
-          statusMsg.classList.remove('success');
-        }, 2000);
-      }
+      // Guardar
+      localStorage.setItem('theme', theme);
     });
   });
+
+  // --- Lógica de Notícias Guardadas ---
+  function updateSavedNews() {
+    const container = document.getElementById('saved-news-container');
+    if (!container) return;
+
+    const saved = localStorage.getItem('ler-depois');
+    const news = saved ? JSON.parse(saved) : [];
+
+    if (news.length === 0) {
+      container.innerHTML = `
+        <div class="empty-saved">
+          <div class="empty-saved-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <p>Ainda não guardou nenhuma notícia.</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = news.map((n: any) => `
+      <div class="saved-item-card">
+        <div class="saved-item-content">
+          <div class="saved-item-info">
+            <span class="saved-item-date">${n.data}</span>
+            <h3 class="saved-item-title" onclick="window.location.href='/noticias/${n.id}'">${n.titulo}</h3>
+          </div>
+          <div class="saved-item-image">
+            <img src="${n.imagem}" alt="${n.titulo}" onclick="window.location.href='/noticias/${n.id}'" style="cursor: pointer;" />
+          </div>
+        </div>
+        <button class="remove-saved-btn" data-id="${n.id}" title="Remover">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    `).join('');
+
+    // Adicionar eventos para os botões de remover
+    container.querySelectorAll('.remove-saved-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = btn.getAttribute('data-id');
+        let saved = JSON.parse(localStorage.getItem('ler-depois') || '[]');
+        saved = saved.filter((n: any) => n.id !== id);
+        localStorage.setItem('ler-depois', JSON.stringify(saved));
+        
+        // Dispara evento para atualizar outros componentes (como os ícones nos cards)
+        window.dispatchEvent(new CustomEvent('bookmarks-updated'));
+        // Atualiza a própria lista
+        updateSavedNews();
+      });
+    });
+  }
+
+  // Atualiza ao carregar e quando houver mudanças
+  updateSavedNews();
+  window.addEventListener('bookmarks-updated', updateSavedNews);
 </script>

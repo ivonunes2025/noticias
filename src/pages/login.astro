@@ -1,6 +1,9 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
+import Button from "../components/Button.astro";
+import AuthCard from "../components/AuthCard.astro";
+import { SITE_CONFIG } from "../utils/config";
 
 // Se o utilizador já estiver logado (tem o cookie user_name), redireciona para a home
 const user = Astro.cookies.get('user_name')?.value;
@@ -9,20 +12,18 @@ if (user) {
 }
 ---
 
-<Layout titulo="Login - Notícias Básicas">
+<Layout titulo={`Entrar - ${SITE_CONFIG.nome}`}>
   <Navbar isHome={false} />
 
   <main class="auth-container">
-    <div class="auth-card reveal">
-      <div class="auth-header">
-        <h1>Bem-vindo de volta</h1>
-        <p>Inicie sessão para aceder às suas preferências personalizadas.</p>
-      </div>
-
+    <AuthCard 
+      title="Bem-vindo de volta" 
+      subtitle="Inicie sessão para aceder à sua conta."
+    >
       <form id="login-form">
         <div class="input-group">
           <input type="text" id="identifier" name="identifier" required placeholder=" " />
-          <label for="identifier">Email ou Nome de Utilizador</label>
+          <label for="identifier">E-mail ou utilizador</label>
         </div>
 
         <div class="input-group">
@@ -30,39 +31,39 @@ if (user) {
           <label for="password">Palavra-passe</label>
         </div>
 
-        <button type="submit" class="auth-btn">
+        <Button type="submit" class="auth-btn" id="login-submit">
           <span>Entrar</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
-        </button>
+        </Button>
 
         <div id="auth-status" class="auth-status"></div>
       </form>
 
       <div class="auth-footer">
-        <p>Ainda não tem conta? <a href="/registo">Crie uma agora</a></p>
+        <p>Ainda não tem conta? <a href="/registo">Registe-se aqui</a></p>
       </div>
-    </div>
+    </AuthCard>
   </main>
 </Layout>
 
 <script>
-  const form = document.getElementById('login-form') as HTMLFormElement;
+  const form = document.getElementById('login-form');
   const status = document.getElementById('auth-status');
 
   if (form && status) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const btn = form.querySelector('.auth-btn') as HTMLButtonElement;
-      const btnSpan = btn.querySelector('span');
+      const btn = document.getElementById('login-submit') as HTMLButtonElement;
+      const btnSpan = btn?.querySelector('span');
       
-      const formData = new FormData(form);
+      const formData = new FormData(form as HTMLFormElement);
       const identifier = formData.get('identifier');
       const password = formData.get('password');
 
       if (btnSpan) {
         const originalText = btnSpan.innerText;
-        btnSpan.innerText = 'A processar...';
-        btn.disabled = true;
+        btnSpan.innerText = 'A entrar...';
+        (btn as HTMLButtonElement).disabled = true;
         status.innerText = '';
         status.className = 'auth-status';
 
@@ -76,20 +77,20 @@ if (user) {
           const result = await response.json();
 
           if (response.ok) {
-            status.innerText = 'Login efetuado! A redirecionar...';
+            status.innerText = 'Sessão iniciada com sucesso!';
             status.className = 'auth-status success show';
             setTimeout(() => window.location.href = '/', 1000);
           } else {
-            status.innerText = result.error || 'Erro ao entrar.';
+            status.innerText = result.error || 'Credenciais inválidas.';
             status.className = 'auth-status error show';
             btnSpan.innerText = originalText;
-            btn.disabled = false;
+            (btn as HTMLButtonElement).disabled = false;
           }
         } catch (error) {
-          status.innerText = 'Erro de conexão.';
+          status.innerText = 'Erro de ligação ao servidor.';
           status.className = 'auth-status error show';
           btnSpan.innerText = originalText;
-          btn.disabled = false;
+          (btn as HTMLButtonElement).disabled = false;
         }
       }
     });
