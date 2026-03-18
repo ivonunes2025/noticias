@@ -19,10 +19,10 @@ export async function fetchStrapi<T = any>(
 
     const queryString = query.toString();
     const url = `${STRAPI}/api/${path}${queryString ? `?${queryString}` : ""}`;
-    
+
     const res = await fetch(url);
     if (!res.ok) return null;
-    
+
     const json = await res.json();
     return json as T;
   } catch (e) {
@@ -31,12 +31,6 @@ export async function fetchStrapi<T = any>(
   }
 }
 
-// Quando buscas páginas para o menu ou listagens:
-fetchStrapi('paginas', {
-  'filters[visivel][$ne]': false,  // ← exclui as ocultas
-  'fields': 'titulo,slug',
-  'sort': 'titulo:asc'
-})
 /**
  * Busca as categorias do Strapi.
  */
