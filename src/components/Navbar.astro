@@ -52,10 +52,12 @@ const user = Astro.cookies.get('user_name')?.value;
             <span class="nav-user-name">{user}</span>
           </button>
           <div class="dropdown-menu" id="user-menu" role="menu">
-            <a href="/perfil#preferencias" class="dropdown-item">Preferências</a>
-            <a href="/perfil#tema" class="dropdown-item">Tema</a>
-            <a href="/perfil#guardados" class="dropdown-item">Guardados</a>
-            <button id="logout-btn" class="dropdown-item logout-item">{SITE_CONFIG.ui.auth.sair}</button>
+            <div class="dropdown-menu-inner">
+              <a href="/perfil#preferencias" class="dropdown-item">Preferências</a>
+              <a href="/perfil#tema" class="dropdown-item">Tema</a>
+              <a href="/perfil#guardados" class="dropdown-item">Guardados</a>
+              <button id="logout-btn" class="dropdown-item logout-item">{SITE_CONFIG.ui.auth.sair}</button>
+            </div>
           </div>
         </div>
       ) : (

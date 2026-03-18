@@ -1,4 +1,6 @@
+
 // src/utils/menus.ts
+// Sistema de menus dinâmico com suporte a árvore de 2 níveis via Strapi
 
 export interface MenuItem {
   id: number;
@@ -16,63 +18,138 @@ export interface Menu {
   itens: MenuItem[];
 }
 
+/**
+ * Normaliza um item de menu vindo do Strapi (v4 ou v5)
+ */
+function normalizeItem(raw: any): MenuItem {
+  // Strapi v5: dados directos | Strapi v4: { id, attributes: { ... } }
+  const data = raw?.attributes ?? raw;
+  return {
+    id: raw.id ?? data.id,
+    titulo: data.titulo ?? '',
+    link: data.link ?? '#',
+    ordem: data.ordem ?? 0,
+    abrir_nova_aba: data.abrir_nova_aba ?? false,
+    filhos: [],
+  };
+}
+
+/**
+ * Busca um menu pelo slug com todos os itens e submenus (2 níveis).
+ * Compatível com a tua estrutura:
+ *   Menu  → itens (oneToMany → Menu Item)
+ *   Menu Item → filhos (oneToMany → self), pai (manyToOne → self)
+ */
 export async function getMenu(slug: string): Promise<Menu | null> {
   const STRAPI = import.meta.env.STRAPI_URL?.replace(/\/$/, '');
   if (!STRAPI) return null;
 
   try {
-    // ✅ URL correta que já testámos e funciona no teu Strapi v5
-    const url = `${STRAPI}/api/menus?filters[slug][$eq]=${slug}&populate[itens][populate]=filhos`;
+    const params = new URLSearchParams({
+      'filters[slug][$eq]': slug,
+      // Campos dos itens de nível 1
+      'populate[itens][fields][0]': 'titulo',
+      'populate[itens][fields][1]': 'link',
+      'populate[itens][fields][2]': 'ordem',
+      'populate[itens][fields][3]': 'abrir_nova_aba',
+      // Campos dos filhos de nível 2 (dropdown)
+      'populate[itens][populate][filhos][fields][0]': 'titulo',
+      'populate[itens][populate][filhos][fields][1]': 'link',
+      'populate[itens][populate][filhos][fields][2]': 'ordem',
+      'populate[itens][populate][filhos][fields][3]': 'abrir_nova_aba',
+    });
 
+    const url = `${STRAPI}/api/menus?${params.toString()}`;
     const res = await fetch(url);
-    if (!res.ok) return null;
+
+    if (!res.ok) {
+      console.error(`[getMenu] HTTP ${res.status} ao buscar menu "${slug}"`);
+      return null;
+    }
 
     const json = await res.json();
 
-    // ✅ Strapi v5 — os dados vêm directamente sem .attributes
+    // Suporte a Strapi v4 e v5
     const raw = json.data?.[0];
-    if (!raw) return null;
+    if (!raw) {
+      console.warn(`[getMenu] Menu "${slug}" não encontrado no Strapi.`);
+      return null;
+    }
 
-    const todosItens: any[] = raw.itens ?? [];
+    const menuData = raw?.attributes ?? raw;
 
-    // Filtra apenas itens de nível 1 (sem pai)
-    // Um item é nível 1 se nenhum outro item o tem como filho
+    // Itens — formato v4: { data: [...] } | formato v5: [...] directo
+    const itensRaw: any[] =
+      menuData.itens?.data ??
+      menuData.itens ??
+      [];
+
+    // ── Filtrar apenas itens de nível 1 ──
+    // Um item é nível 1 se nenhum outro item o tem como filho.
+    // Garante que submenus não aparecem duplicados no topo da navbar.
     const idsFilhos = new Set<number>();
-    todosItens.forEach((item: any) => {
-      const filhos = item.filhos ?? [];
-      filhos.forEach((f: any) => idsFilhos.add(f.id));
+    itensRaw.forEach((item: any) => {
+      const filhosArr =
+        item?.attributes?.filhos?.data ??
+        item?.filhos?.data ??
+        item?.filhos ??
+        [];
+      filhosArr.forEach((f: any) => idsFilhos.add(f.id));
     });
 
-    const itensNivel1 = todosItens
+    const itensNivel1 = itensRaw
       .filter((item: any) => !idsFilhos.has(item.id))
-      .map((item: any) => ({
-        id: item.id,
-        titulo: item.titulo ?? '',
-        link: item.link ?? '#',
-        ordem: item.ordem ?? 0,
-        abrir_nova_aba: item.abrir_nova_aba ?? false,
-        filhos: (item.filhos ?? [])
-          .map((f: any) => ({
-            id: f.id,
-            titulo: f.titulo ?? '',
-            link: f.link ?? '#',
-            ordem: f.ordem ?? 0,
-            abrir_nova_aba: f.abrir_nova_aba ?? false,
-            filhos: [],
-          }))
-          .sort((a: MenuItem, b: MenuItem) => a.ordem - b.ordem),
-      }))
+      .map((item: any) => {
+        const base = normalizeItem(item);
+
+        // Obter filhos (nível 2)
+        const filhosRaw: any[] =
+          item?.attributes?.filhos?.data ??
+          item?.filhos?.data ??
+          item?.filhos ??
+          [];
+
+        base.filhos = filhosRaw
+          .map(normalizeItem)
+          .sort((a: MenuItem, b: MenuItem) => a.ordem - b.ordem);
+
+        return base;
+      })
       .sort((a: MenuItem, b: MenuItem) => a.ordem - b.ordem);
 
     return {
       id: raw.id,
-      nome: raw.nome ?? '',
-      slug: raw.slug ?? slug,
+      nome: menuData.nome ?? '',
+      slug: menuData.slug ?? slug,
       itens: itensNivel1,
     };
 
   } catch (e) {
-    console.error('Erro ao buscar menu:', e);
+    console.error('[getMenu] Erro inesperado:', e);
     return null;
+  }
+}
+
+/**
+ * Lista todos os menus disponíveis (útil para debug ou selects no backoffice).
+ */
+export async function getAllMenus(): Promise<Pick<Menu, 'id' | 'nome' | 'slug'>[]> {
+  const STRAPI = import.meta.env.STRAPI_URL?.replace(/\/$/, '');
+  if (!STRAPI) return [];
+
+  try {
+    const res = await fetch(
+      `${STRAPI}/api/menus?fields[0]=nome&fields[1]=slug&sort=nome:asc`
+    );
+    if (!res.ok) return [];
+
+    const json = await res.json();
+    return (json.data ?? []).map((m: any) => ({
+      id: m.id,
+      nome: m?.attributes?.nome ?? m.nome ?? '',
+      slug: m?.attributes?.slug ?? m.slug ?? '',
+    }));
+  } catch {
+    return [];
   }
 }

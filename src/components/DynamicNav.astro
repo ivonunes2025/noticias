@@ -1,5 +1,8 @@
 ---
+// src/components/DynamicNav.astro
+
 import { getMenu } from '../utils/menus';
+import { fetchStrapi, normalize } from '../utils/strapi';
 import type { MenuItem } from '../utils/menus';
 
 interface Props {
@@ -8,13 +11,82 @@ interface Props {
 }
 
 const { slug, class: className } = Astro.props;
+
+const STRAPI = import.meta.env.STRAPI_URL?.replace(/\/$/, '');
+
+// ── Busca categorias directamente (sem depender do fetchStrapi wrapper) ──
+// Testa os dois endpoints possíveis: /categoria e /categorias
+let categorias: any[] = [];
+
+try {
+  // Tenta primeiro /categorias (plural)
+  const res1 = await fetch(`${STRAPI}/api/categorias?pagination[pageSize]=100&sort=nome:asc`);
+  if (res1.ok) {
+    const json1 = await res1.json();
+    const arr = json1?.data ?? [];
+    // Normaliza v4 ({ id, attributes }) e v5 ({ id, nome, slug })
+    categorias = arr.map((c: any) => ({
+      id: c.id,
+      nome: c?.attributes?.nome ?? c.nome ?? c?.attributes?.name ?? c.name ?? '',
+      slug: c?.attributes?.slug ?? c.slug ?? '',
+    })).filter((c: any) => c.slug);
+  }
+
+  // Se não encontrou nada, tenta /categoria (singular)
+  if (categorias.length === 0) {
+    const res2 = await fetch(`${STRAPI}/api/categoria?pagination[pageSize]=100&sort=nome:asc`);
+    if (res2.ok) {
+      const json2 = await res2.json();
+      const arr = json2?.data ?? [];
+      categorias = arr.map((c: any) => ({
+        id: c.id,
+        nome: c?.attributes?.nome ?? c.nome ?? c?.attributes?.name ?? c.name ?? '',
+        slug: c?.attributes?.slug ?? c.slug ?? '',
+      })).filter((c: any) => c.slug);
+    }
+  }
+} catch (e) {
+  console.error('[DynamicNav] Erro ao buscar categorias:', e);
+}
+
+// Busca o menu configurado no Strapi
 const menu = await getMenu(slug);
+
+// Regra de auto-injeção: item com link /categorias e sem filhos manuais
+function shouldInjectCategorias(item: MenuItem): boolean {
+  return (
+    item.link.startsWith('/categorias') &&
+    item.filhos.length === 0 &&
+    categorias.length > 0
+  );
+}
+
+function buildItens(itens: MenuItem[]): MenuItem[] {
+  return itens.map(item => {
+    if (shouldInjectCategorias(item)) {
+      return {
+        ...item,
+        filhos: categorias.map((cat: any) => ({
+          id: cat.id,
+          titulo: cat.nome,
+          link: `/categorias/${cat.slug}`,
+          ordem: 0,
+          abrir_nova_aba: false,
+          filhos: [],
+        })),
+      };
+    }
+    return item;
+  });
+}
+
+const itensFinais = menu ? buildItens(menu.itens) : [];
 ---
 
-{menu && menu.itens.length > 0 && (
-  <nav class={`dynamic-nav ${className ?? ''}`} aria-label={menu.nome}>
+{itensFinais.length > 0 && (
+  <nav class={`dynamic-nav ${className ?? ''}`} aria-label={menu?.nome ?? 'Navegação'}>
     <ul class="dynamic-nav__list">
-      {menu.itens.map((item: MenuItem) => (
+      {itensFinais.map((item: MenuItem) => (
         <li class={`dynamic-nav__item ${item.filhos.length > 0 ? 'has-dropdown' : ''}`}>
           {item.filhos.length > 0 ? (
             <>
@@ -29,30 +101,22 @@ const menu = await getMenu(slug);
                   <polyline points="6 9 12 15 18 9"/>
                 </svg>
               </button>
+
               <ul class="dynamic-nav__dropdown" role="menu">
-                <li role="none">
-                  <a
-                    href={item.link}
-                    class="dynamic-nav__dropdown-item dynamic-nav__dropdown-item--header"
-                    target={item.abrir_nova_aba ? '_blank' : '_self'}
-                    role="menuitem"
-                  >
-                    {item.titulo} — Ver tudo
-                  </a>
-                </li>
-                <li class="dynamic-nav__divider" role="none"></li>
-                {item.filhos.map((filho: MenuItem) => (
-                  <li role="none">
-                    <a
-                      href={filho.link}
-                      class="dynamic-nav__dropdown-item"
-                      target={filho.abrir_nova_aba ? '_blank' : '_self'}
-                      role="menuitem"
-                    >
-                      {filho.titulo}
-                    </a>
-                  </li>
-                ))}
+                <div class="dynamic-nav__dropdown-inner">
+                  {item.filhos.map((filho: MenuItem) => (
+                    <li role="none">
+                      <a
+                        href={filho.link}
+                        class="dynamic-nav__dropdown-item"
+                        target={filho.abrir_nova_aba ? '_blank' : '_self'}
+                        role="menuitem"
+                      >
+                        {filho.titulo}
+                      </a>
+                    </li>
+                  ))}
+                </div>
               </ul>
             </>
           ) : (
@@ -103,6 +167,7 @@ const menu = await getMenu(slug);
   }
 
   .dynamic-nav__link:hover,
+  .has-dropdown:hover .dynamic-nav__link--parent,
   .dynamic-nav__link--parent[aria-expanded="true"] {
     color: var(--cor-principal);
     background: var(--cor-destaque-claro);
@@ -113,22 +178,24 @@ const menu = await getMenu(slug);
     flex-shrink: 0;
   }
 
+  .has-dropdown:hover .dropdown-chevron,
   .dynamic-nav__link--parent[aria-expanded="true"] .dropdown-chevron {
     transform: rotate(180deg);
   }
 
   .dynamic-nav__dropdown {
     position: absolute;
-    top: calc(100% + 8px);
+    top: 100%; /* Removido o gap de 8px para evitar fechar ao mover o rato */
     left: 0;
+    padding-top: 8px; /* Adicionado padding para manter o aspecto visual mas sem gap real */
     min-width: 220px;
-    background: rgba(18, 18, 18, 0.98);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    max-height: 400px;
+    overflow-y: auto;
+    background: transparent; /* Fundo transparente no container principal */
+    border: none;
     border-radius: 12px;
-    padding: 6px;
     list-style: none;
     margin: 0;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     opacity: 0;
     pointer-events: none;
     transform: translateY(-6px);
@@ -136,8 +203,31 @@ const menu = await getMenu(slug);
     z-index: 200;
   }
 
+  /* Container interno com o fundo real */
+  .dynamic-nav__dropdown-inner {
+    background: rgba(18, 18, 18, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.15) transparent;
+  }
+
+  .dynamic-nav__dropdown-inner::-webkit-scrollbar { width: 4px; }
+  .dynamic-nav__dropdown-inner::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.15);
+    border-radius: 4px;
+  }
+
   .has-dropdown:hover .dynamic-nav__dropdown,
   .dynamic-nav__item:focus-within .dynamic-nav__dropdown {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateY(0);
+  }
+
+  .dynamic-nav__link--parent[aria-expanded="true"] ~ .dynamic-nav__dropdown {
     opacity: 1;
     pointer-events: all;
     transform: translateY(0);
@@ -162,10 +252,10 @@ const menu = await getMenu(slug);
 
   .dynamic-nav__dropdown-item--header {
     color: var(--cor-destaque);
-    font-size: 0.8rem;
-    font-weight: 600;
+    font-size: 0.78rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
   }
 
   .dynamic-nav__dropdown-item--header:hover {
@@ -179,7 +269,7 @@ const menu = await getMenu(slug);
     margin: 4px 8px;
   }
 
-  /* Mobile */
+  /* ── Mobile ── */
   .dynamic-nav--mobile .dynamic-nav__list {
     flex-direction: column;
     align-items: stretch;
@@ -189,6 +279,8 @@ const menu = await getMenu(slug);
   .dynamic-nav--mobile .dynamic-nav__link {
     padding: 10px 12px;
     font-size: 0.92rem;
+    width: 100%;
+    justify-content: space-between;
   }
 
   .dynamic-nav--mobile .dynamic-nav__dropdown {
@@ -203,6 +295,17 @@ const menu = await getMenu(slug);
     border-left: 2px solid rgba(200, 150, 62, 0.3);
     margin-left: 12px;
     margin-bottom: 4px;
+    max-height: none;
+    display: none;
+  }
+
+  .dynamic-nav--mobile .dynamic-nav__dropdown.mobile-open {
+    display: block;
+  }
+
+  .dynamic-nav--mobile .dynamic-nav__dropdown-item {
+    white-space: normal;
+    font-size: 0.88rem;
   }
 </style>
 
@@ -223,9 +326,22 @@ const menu = await getMenu(slug);
     });
 
     document.addEventListener('click', closeAll);
-
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closeAll();
+    });
+
+    // Mobile: expandir/colapsar
+    document.querySelectorAll('.dynamic-nav--mobile [data-dropdown-trigger]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const li = btn.closest('.dynamic-nav__item');
+        const dropdown = li?.querySelector('.dynamic-nav__dropdown');
+        if (!dropdown) return;
+        const isOpen = dropdown.classList.contains('mobile-open');
+        document.querySelectorAll('.dynamic-nav--mobile .dynamic-nav__dropdown.mobile-open')
+          .forEach(d => d.classList.remove('mobile-open'));
+        if (!isOpen) dropdown.classList.add('mobile-open');
+      });
     });
   }
 
