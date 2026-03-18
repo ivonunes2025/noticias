@@ -1,0 +1,234 @@
+---
+import { getMenu } from '../utils/menus';
+import type { MenuItem } from '../utils/menus';
+
+interface Props {
+  slug: string;
+  class?: string;
+}
+
+const { slug, class: className } = Astro.props;
+const menu = await getMenu(slug);
+---
+
+{menu && menu.itens.length > 0 && (
+  <nav class={`dynamic-nav ${className ?? ''}`} aria-label={menu.nome}>
+    <ul class="dynamic-nav__list">
+      {menu.itens.map((item: MenuItem) => (
+        <li class={`dynamic-nav__item ${item.filhos.length > 0 ? 'has-dropdown' : ''}`}>
+          {item.filhos.length > 0 ? (
+            <>
+              <button
+                class="dynamic-nav__link dynamic-nav__link--parent"
+                aria-haspopup="true"
+                aria-expanded="false"
+                data-dropdown-trigger
+              >
+                {item.titulo}
+                <svg class="dropdown-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+              <ul class="dynamic-nav__dropdown" role="menu">
+                <li role="none">
+                  <a
+                    href={item.link}
+                    class="dynamic-nav__dropdown-item dynamic-nav__dropdown-item--header"
+                    target={item.abrir_nova_aba ? '_blank' : '_self'}
+                    role="menuitem"
+                  >
+                    {item.titulo} — Ver tudo
+                  </a>
+                </li>
+                <li class="dynamic-nav__divider" role="none"></li>
+                {item.filhos.map((filho: MenuItem) => (
+                  <li role="none">
+                    <a
+                      href={filho.link}
+                      class="dynamic-nav__dropdown-item"
+                      target={filho.abrir_nova_aba ? '_blank' : '_self'}
+                      role="menuitem"
+                    >
+                      {filho.titulo}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <a
+              href={item.link}
+              class="dynamic-nav__link"
+              target={item.abrir_nova_aba ? '_blank' : '_self'}
+            >
+              {item.titulo}
+            </a>
+          )}
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}
+
+<style>
+  .dynamic-nav__list {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .dynamic-nav__item {
+    position: relative;
+  }
+
+  .dynamic-nav__link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    color: var(--cor-texto-suave);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 8px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: var(--fonte-corpo);
+    white-space: nowrap;
+    transition: color 0.2s ease, background 0.2s ease;
+  }
+
+  .dynamic-nav__link:hover,
+  .dynamic-nav__link--parent[aria-expanded="true"] {
+    color: var(--cor-principal);
+    background: var(--cor-destaque-claro);
+  }
+
+  .dropdown-chevron {
+    transition: transform 0.25s ease;
+    flex-shrink: 0;
+  }
+
+  .dynamic-nav__link--parent[aria-expanded="true"] .dropdown-chevron {
+    transform: rotate(180deg);
+  }
+
+  .dynamic-nav__dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    min-width: 220px;
+    background: rgba(18, 18, 18, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 6px;
+    list-style: none;
+    margin: 0;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 200;
+  }
+
+  .has-dropdown:hover .dynamic-nav__dropdown,
+  .dynamic-nav__item:focus-within .dynamic-nav__dropdown {
+    opacity: 1;
+    pointer-events: all;
+    transform: translateY(0);
+  }
+
+  .dynamic-nav__dropdown-item {
+    display: block;
+    padding: 9px 14px;
+    color: var(--cor-texto-suave);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: color 0.2s ease, background 0.2s ease;
+    white-space: nowrap;
+  }
+
+  .dynamic-nav__dropdown-item:hover {
+    color: var(--cor-principal);
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .dynamic-nav__dropdown-item--header {
+    color: var(--cor-destaque);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .dynamic-nav__dropdown-item--header:hover {
+    color: var(--cor-destaque);
+    background: var(--cor-destaque-claro);
+  }
+
+  .dynamic-nav__divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.07);
+    margin: 4px 8px;
+  }
+
+  /* Mobile */
+  .dynamic-nav--mobile .dynamic-nav__list {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+  }
+
+  .dynamic-nav--mobile .dynamic-nav__link {
+    padding: 10px 12px;
+    font-size: 0.92rem;
+  }
+
+  .dynamic-nav--mobile .dynamic-nav__dropdown {
+    position: static;
+    opacity: 1;
+    pointer-events: all;
+    transform: none;
+    box-shadow: none;
+    border: none;
+    background: transparent;
+    padding-left: 12px;
+    border-left: 2px solid rgba(200, 150, 62, 0.3);
+    margin-left: 12px;
+    margin-bottom: 4px;
+  }
+</style>
+
+<script>
+  function setupDynamicNav() {
+    const closeAll = () => {
+      document.querySelectorAll('[data-dropdown-trigger][aria-expanded="true"]')
+        .forEach(btn => btn.setAttribute('aria-expanded', 'false'));
+    };
+
+    document.querySelectorAll('[data-dropdown-trigger]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = btn.getAttribute('aria-expanded') === 'true';
+        closeAll();
+        if (!isOpen) btn.setAttribute('aria-expanded', 'true');
+      });
+    });
+
+    document.addEventListener('click', closeAll);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeAll();
+    });
+  }
+
+  setupDynamicNav();
+  document.addEventListener('astro:after-swap', setupDynamicNav);
+</script>
