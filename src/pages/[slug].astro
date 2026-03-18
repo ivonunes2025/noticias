@@ -16,8 +16,14 @@ const res = await fetch(`${STRAPI}/api/paginas?filters[slug][$eq]=${slug}&popula
 const rawData = res.data?.[0];
 const pagina = rawData?.attributes ?? rawData;
 
-// Se não houver página, Astro.redirect ou 404
+// Se não houver página, redireciona para 404
 if (!pagina) {
+  return Astro.redirect('/404');
+}
+
+// ✅ VERIFICAÇÃO DE VISIBILIDADE
+// Se o campo `visivel` for explicitamente false, a página está oculta
+if (pagina.visivel === false) {
   return Astro.redirect('/404');
 }
 
@@ -235,9 +241,8 @@ const urlCapa = getImageUrl(imagemCapa);
     transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Altura aproximada para 6 linhas (1.1rem * 1.8 * 6 ≈ 12rem ou 192px) */
   .content-body.is-collapsed {
-    max-height: 200px; /* Ajuste para ~6 linhas dependendo da fonte */
+    max-height: 200px;
   }
 
   .content-overlay {
@@ -360,7 +365,6 @@ const urlCapa = getImageUrl(imagemCapa);
     letter-spacing: 0.05em;
   }
 
-  /* Imagens dentro do texto rico */
   .content-body :global(.rich-image-container) {
     margin: 40px 0;
     width: 100%;
@@ -393,7 +397,6 @@ const urlCapa = getImageUrl(imagemCapa);
 
     if (!toggleBtn || !contentBody) return;
 
-    // Se o conteúdo for menor que o limite, esconde o botão
     if (contentBody.scrollHeight <= 200) {
       toggleBtn.style.display = 'none';
       if (contentOverlay) contentOverlay.style.display = 'none';
@@ -405,7 +408,6 @@ const urlCapa = getImageUrl(imagemCapa);
       const isCollapsed = contentBody.classList.contains('is-collapsed');
       
       if (isCollapsed) {
-        // Expandir
         contentBody.classList.remove('is-collapsed');
         contentBody.style.maxHeight = contentBody.scrollHeight + 'px';
         toggleBtn.classList.add('is-active');
@@ -413,7 +415,6 @@ const urlCapa = getImageUrl(imagemCapa);
         if (span) span.innerText = 'Ver menos';
         if (contentOverlay) contentOverlay.style.opacity = '0';
       } else {
-        // Colapsar
         contentBody.classList.add('is-collapsed');
         contentBody.style.maxHeight = '200px';
         toggleBtn.classList.remove('is-active');
@@ -421,7 +422,6 @@ const urlCapa = getImageUrl(imagemCapa);
         if (span) span.innerText = 'Ver mais';
         if (contentOverlay) contentOverlay.style.opacity = '1';
         
-        // Opcional: Voltar para o início do conteúdo se estiver muito abaixo
         const rect = contentBody.getBoundingClientRect();
         if (rect.top < 0) {
           window.scrollTo({
@@ -433,7 +433,6 @@ const urlCapa = getImageUrl(imagemCapa);
     });
   }
 
-  // Executa no carregamento e após transições de página (se houver ViewTransitions)
   setupReadMore();
   document.addEventListener('astro:after-swap', setupReadMore);
 </script>

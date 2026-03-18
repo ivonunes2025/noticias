@@ -5,10 +5,14 @@
 import "../styles/global.css";
 import Footer from "../components/Footer.astro";
 import CookieConsent from "../components/CookieConsent.astro";
+import { getDefinicoes } from "../utils/definicoes";
 
 // 1. Headers de Cache (Stale-While-Revalidate) para Performance
 // Nota: Em produção, o servidor (Node/Vercel/etc) usará estes headers
 Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=30');
+
+// Busca definições globais (favicon, etc)
+const definicoes = await getDefinicoes();
 
 // Título da página, com valor por omissão se não for passado via props
 const { titulo = "Notícias Básicas", lcpImage } = Astro.props;
@@ -41,7 +45,7 @@ const themeCookie = Astro.cookies.get('theme')?.value || 'dark';
       })();
     </script>
     {/* Ícone do site (favicon) */}
-    <link rel="icon" href="/favicon.ico" />
+    <link rel="icon" href={definicoes.favicon || "/favicon.ico"} />
     {/* Meta gerado automaticamente pelo Astro */}
     <meta name="generator" content={Astro.generator} />
     {/* Pré-conexões e carregamento otimizado de fontes */}

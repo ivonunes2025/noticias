@@ -41,11 +41,17 @@
   color: var(--cor-destaque, #c8963e);
 }
 
+.navbar-logo-img {
+  max-height: 40px; /* Ajuste conforme necessário */
+  width: auto;
+  display: block;
+}
+
 /* Nav links */
 .navbar-nav {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   margin-left: auto;
   overflow: visible;
   flex-shrink: 0;

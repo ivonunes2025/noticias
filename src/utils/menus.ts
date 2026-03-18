@@ -1,4 +1,3 @@
-
 // src/utils/menus.ts
 // Sistema de menus dinâmico com suporte a árvore de 2 níveis via Strapi
 
@@ -22,7 +21,6 @@ export interface Menu {
  * Normaliza um item de menu vindo do Strapi (v4 ou v5)
  */
 function normalizeItem(raw: any): MenuItem {
-  // Strapi v5: dados directos | Strapi v4: { id, attributes: { ... } }
   const data = raw?.attributes ?? raw;
   return {
     id: raw.id ?? data.id,
@@ -35,10 +33,50 @@ function normalizeItem(raw: any): MenuItem {
 }
 
 /**
+ * Busca os slugs das páginas que estão ocultas (visivel === false).
+ * Usado para filtrar itens do menu que apontem para essas páginas.
+ */
+async function getPaginasOcultas(strapiUrl: string): Promise<Set<string>> {
+  try {
+    const res = await fetch(
+      `${strapiUrl}/api/paginas?fields[0]=slug&fields[1]=visivel&pagination[pageSize]=100`
+    );
+    if (!res.ok) return new Set();
+
+    const json = await res.json();
+    const paginas: any[] = json.data ?? [];
+
+    return new Set(
+      paginas
+        .filter((p: any) => {
+          const attrs = p.attributes ?? p;
+          return attrs.visivel === false;
+        })
+        .map((p: any) => {
+          const attrs = p.attributes ?? p;
+          return attrs.slug ?? '';
+        })
+        .filter(Boolean)
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Verifica se um link aponta para uma página oculta.
+ * Ex: "/natal" → slug "natal" → verifica no Set
+ */
+function isItemOculto(link: string, paginasOcultas: Set<string>): boolean {
+  if (!link || link === '#') return false;
+  // Extrai o slug do link: "/natal" → "natal", "/sobre/equipa" → "sobre"
+  const slug = link.replace(/^\//, '').split('/')[0];
+  return paginasOcultas.has(slug);
+}
+
+/**
  * Busca um menu pelo slug com todos os itens e submenus (2 níveis).
- * Compatível com a tua estrutura:
- *   Menu  → itens (oneToMany → Menu Item)
- *   Menu Item → filhos (oneToMany → self), pai (manyToOne → self)
+ * Filtra automaticamente itens que apontem para páginas com visivel === false.
  */
 export async function getMenu(slug: string): Promise<Menu | null> {
   const STRAPI = import.meta.env.STRAPI_URL?.replace(/\/$/, '');
@@ -47,30 +85,30 @@ export async function getMenu(slug: string): Promise<Menu | null> {
   try {
     const params = new URLSearchParams({
       'filters[slug][$eq]': slug,
-      // Campos dos itens de nível 1
       'populate[itens][fields][0]': 'titulo',
       'populate[itens][fields][1]': 'link',
       'populate[itens][fields][2]': 'ordem',
       'populate[itens][fields][3]': 'abrir_nova_aba',
-      // Campos dos filhos de nível 2 (dropdown)
       'populate[itens][populate][filhos][fields][0]': 'titulo',
       'populate[itens][populate][filhos][fields][1]': 'link',
       'populate[itens][populate][filhos][fields][2]': 'ordem',
       'populate[itens][populate][filhos][fields][3]': 'abrir_nova_aba',
     });
 
-    const url = `${STRAPI}/api/menus?${params.toString()}`;
-    const res = await fetch(url);
+    // Faz as duas chamadas em paralelo para não aumentar o tempo de resposta
+    const [menuRes, paginasOcultas] = await Promise.all([
+      fetch(`${STRAPI}/api/menus?${params.toString()}`),
+      getPaginasOcultas(STRAPI),
+    ]);
 
-    if (!res.ok) {
-      console.error(`[getMenu] HTTP ${res.status} ao buscar menu "${slug}"`);
+    if (!menuRes.ok) {
+      console.error(`[getMenu] HTTP ${menuRes.status} ao buscar menu "${slug}"`);
       return null;
     }
 
-    const json = await res.json();
-
-    // Suporte a Strapi v4 e v5
+    const json = await menuRes.json();
     const raw = json.data?.[0];
+
     if (!raw) {
       console.warn(`[getMenu] Menu "${slug}" não encontrado no Strapi.`);
       return null;
@@ -78,15 +116,12 @@ export async function getMenu(slug: string): Promise<Menu | null> {
 
     const menuData = raw?.attributes ?? raw;
 
-    // Itens — formato v4: { data: [...] } | formato v5: [...] directo
     const itensRaw: any[] =
       menuData.itens?.data ??
       menuData.itens ??
       [];
 
-    // ── Filtrar apenas itens de nível 1 ──
-    // Um item é nível 1 se nenhum outro item o tem como filho.
-    // Garante que submenus não aparecem duplicados no topo da navbar.
+    // Descobrir quais são filhos para não os duplicar no nível 1
     const idsFilhos = new Set<number>();
     itensRaw.forEach((item: any) => {
       const filhosArr =
@@ -99,10 +134,14 @@ export async function getMenu(slug: string): Promise<Menu | null> {
 
     const itensNivel1 = itensRaw
       .filter((item: any) => !idsFilhos.has(item.id))
+      .filter((item: any) => {
+        // ✅ Remove itens que apontem para páginas ocultas
+        const data = item?.attributes ?? item;
+        return !isItemOculto(data.link ?? '', paginasOcultas);
+      })
       .map((item: any) => {
         const base = normalizeItem(item);
 
-        // Obter filhos (nível 2)
         const filhosRaw: any[] =
           item?.attributes?.filhos?.data ??
           item?.filhos?.data ??
@@ -110,6 +149,11 @@ export async function getMenu(slug: string): Promise<Menu | null> {
           [];
 
         base.filhos = filhosRaw
+          .filter((f: any) => {
+            // ✅ Remove filhos (dropdown) que apontem para páginas ocultas
+            const fData = f?.attributes ?? f;
+            return !isItemOculto(fData.link ?? '', paginasOcultas);
+          })
           .map(normalizeItem)
           .sort((a: MenuItem, b: MenuItem) => a.ordem - b.ordem);
 

@@ -1,18 +1,26 @@
 ---
 // Componente Footer: O rodapé reutilizável do site.
-// Contém informações sobre o site, links para redes sociais e links legais, todos vindos da configuração central.
+// Os links de navegação vêm do menu footer definido no Strapi (Definição).
 
-// Importa a configuração central do site para aceder a nomes, descrições e links.
 import { SITE_CONFIG } from "../utils/config";
-// Importa os estilos CSS associados a este componente.
+import { getDefinicoes } from "../utils/definicoes";
+import { getMenu } from "../utils/menus";
+import type { MenuItem } from "../utils/menus";
 import "../styles/footer.css";
+
+// Busca as definições globais para obter o slug do menu footer
+const definicoes = await getDefinicoes();
+const menuFooterSlug = definicoes.menuFooterSlug ?? 'menu-footer';
+
+// Busca o menu footer com os seus itens
+const menuFooter = await getMenu(menuFooterSlug);
+const itensFooter: MenuItem[] = menuFooter?.itens ?? [];
 ---
 
-<!-- A tag semântica `<footer>` para o rodapé. -->
 <footer class="footer">
-  <!-- O contêiner principal que centraliza e organiza o conteúdo. -->
   <div class="footer-container">
-    <!-- Secção de informações do site (logo e descrição). -->
+
+    <!-- Secção de informações do site (logo e descrição) -->
     <div class="footer-info">
       <a href="/" class="footer-logo">
         {SITE_CONFIG.nome.split(' ')[0]}<span> {SITE_CONFIG.nome.split(' ').slice(1).join(' ')}</span>
@@ -22,11 +30,48 @@ import "../styles/footer.css";
       </p>
     </div>
 
-    <!-- Secção de redes sociais. -->
+    <!-- Navegação do footer vinda do Strapi -->
+    {itensFooter.length > 0 && (
+      <nav class="footer-nav" aria-label="Menu footer">
+        <h4 class="footer-nav-title">Navegação</h4>
+        <ul class="footer-nav-list">
+          {itensFooter.map((item: MenuItem) => (
+            <li>
+              <a
+                href={item.link}
+                target={item.abrir_nova_aba ? '_blank' : '_self'}
+                rel={item.abrir_nova_aba ? 'noopener noreferrer' : undefined}
+                class="footer-nav-link"
+              >
+                {item.titulo}
+              </a>
+              <!-- Se tiver filhos (dropdown), mostra também -->
+              {item.filhos.length > 0 && (
+                <ul class="footer-nav-sub">
+                  {item.filhos.map((filho: MenuItem) => (
+                    <li>
+                      <a
+                        href={filho.link}
+                        target={filho.abrir_nova_aba ? '_blank' : '_self'}
+                        rel={filho.abrir_nova_aba ? 'noopener noreferrer' : undefined}
+                        class="footer-nav-link footer-nav-link--sub"
+                      >
+                        {filho.titulo}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ul>
+      </nav>
+    )}
+
+    <!-- Secção de redes sociais -->
     <div class="footer-social">
       <h4 class="social-title">Redes Sociais</h4>
       <div class="social-links">
-        <!-- Renderiza o ícone do Facebook apenas se o link estiver definido na configuração. -->
         {SITE_CONFIG.redesSociais.facebook && (
           <a href={SITE_CONFIG.redesSociais.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook" class="social-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -34,7 +79,6 @@ import "../styles/footer.css";
             </svg>
           </a>
         )}
-        <!-- Renderiza o ícone do Instagram apenas se o link estiver definido. -->
         {SITE_CONFIG.redesSociais.instagram && (
           <a href={SITE_CONFIG.redesSociais.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="social-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -44,7 +88,6 @@ import "../styles/footer.css";
             </svg>
           </a>
         )}
-        <!-- Renderiza o ícone do Website apenas se o link estiver definido. -->
         {SITE_CONFIG.redesSociais.website && (
           <a href={SITE_CONFIG.redesSociais.website} target="_blank" rel="noopener noreferrer" aria-label="Website Oficial" class="social-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -56,16 +99,14 @@ import "../styles/footer.css";
         )}
       </div>
     </div>
+
   </div>
 
-  <!-- A barra inferior do rodapé, com direitos de autor e links legais. -->
+  <!-- Barra inferior com direitos de autor e links legais -->
   <div class="footer-bottom">
     <div class="footer-bottom-container">
       <p>&copy; {SITE_CONFIG.ano} {SITE_CONFIG.nome}. Todos os direitos reservados.</p>
       <div class="footer-bottom-links">
-        <a href={SITE_CONFIG.linksLegais.termos}>Termos e Condições</a>
-        <a href={SITE_CONFIG.linksLegais.privacidade}>Política de Privacidade</a>
-        <!-- Renderiza o link para o Livro de Reclamações apenas se estiver definido na configuração. -->
         {SITE_CONFIG.linksLegais.livroReclamacoes && (
           <a href={SITE_CONFIG.linksLegais.livroReclamacoes} target="_blank" rel="noopener noreferrer" class="livro-reclamacoes">
             Livro de Reclamações

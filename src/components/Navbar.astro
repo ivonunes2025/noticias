@@ -1,6 +1,7 @@
 ---
-import { fetchStrapi, normalize } from "../utils/strapi";
+import { fetchStrapi, normalize, getImageUrl } from "../utils/strapi";
 import { SITE_CONFIG } from "../utils/config";
+import { getDefinicoes } from "../utils/definicoes";
 import DynamicNav from "./DynamicNav.astro";
 import "../styles/navbar.css";
 
@@ -10,9 +11,16 @@ interface Props {
 
 const { isHome = false } = Astro.props;
 
+// Busca definições (logo, etc)
+const definicoes = await getDefinicoes();
+
 const [rawCategorias, rawPaginas, rawNoticias] = await Promise.all([
   fetchStrapi('categorias', { 'pagination[pageSize]': 20, 'sort': 'nome:asc' }).then(d => d || []),
-  fetchStrapi('paginas', { 'fields': 'titulo,slug', 'sort': 'titulo:asc' }).then(d => d || []),
+  fetchStrapi('paginas', { 
+  'filters[visivel][$ne]': false,
+  'fields': 'titulo,slug', 
+  'sort': 'titulo:asc' 
+}).then(d => d || []),
   fetchStrapi('noticias', { 'fields': 'titulo,slug', 'pagination[pageSize]': 100, 'sort': 'publishedAt:desc' }).then(d => d || [])
 ]);
 
@@ -32,7 +40,13 @@ const user = Astro.cookies.get('user_name')?.value;
 <header class="navbar">
   <div class="navbar-inner">
     <a href="/" class="navbar-logo">
-      {SITE_CONFIG.nome.split(' ')[0]}<span>{SITE_CONFIG.nome.split(' ').slice(1).join(' ')}</span>
+      {definicoes.logo ? (
+        <img src={definicoes.logo} alt={SITE_CONFIG.nome} class="navbar-logo-img" />
+      ) : (
+        <>
+          {SITE_CONFIG.nome.split(' ')[0]}<span>{SITE_CONFIG.nome.split(' ').slice(1).join(' ')}</span>
+        </>
+      )}
     </a>
 
     <nav class="navbar-nav">

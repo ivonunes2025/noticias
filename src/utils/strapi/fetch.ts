@@ -31,6 +31,12 @@ export async function fetchStrapi<T = any>(
   }
 }
 
+// Quando buscas páginas para o menu ou listagens:
+fetchStrapi('paginas', {
+  'filters[visivel][$ne]': false,  // ← exclui as ocultas
+  'fields': 'titulo,slug',
+  'sort': 'titulo:asc'
+})
 /**
  * Busca as categorias do Strapi.
  */
