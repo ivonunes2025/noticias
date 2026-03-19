@@ -1,0 +1,168 @@
+/**
+ * Estilos para o componente HomepageBanner.astro.
+ * Gerencia o layout do banner principal, slideshow, setas e indicadores.
+ */
+
+/* ── Wrapper Principal do Banner ── */
+.banner-wrapper {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: var(--cor-fundo-card);
+}
+
+/* Mantém um rácio de aspecto fixo (21:9 em desktop) para evitar saltos de layout */
+.banner-wrapper::before {
+  content: "";
+  display: block;
+  padding-top: 28%;  /* Rácio aproximado de 21:6 */
+}
+
+/* Ajusta o rácio para 16:9 em dispositivos móveis */
+@media (max-width: 768px) {
+  .banner-wrapper::before {
+    padding-top: 56.25%; /* Rácio 16:9 */
+  }
+}
+
+/* ── Contentor dos Slides (Track) ── */
+.banner-track {
+  position: absolute;
+  inset: 0;
+}
+
+/* ── Estilos de cada Slide Individual ── */
+.banner-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+/* Estado ativo do slide (visível) */
+.banner-slide.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.banner-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Imagem de fundo do banner */
+.banner-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 0;
+  box-shadow: none;
+  display: block;
+}
+
+/* ── Overlay de Gradiente ── */
+/* Adiciona um escurecimento suave no fundo para melhorar o contraste dos elementos UI */
+.banner--slideshow .banner-track::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 55%,
+    rgba(0, 0, 0, 0.35) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Botões de Navegação (Setas) ── */
+.banner-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  padding: 0;
+}
+
+.banner-arrow:hover {
+  background: var(--cor-destaque);
+  border-color: var(--cor-destaque);
+  transform: translateY(-50%) scale(1.08);
+}
+
+.banner-arrow--prev { left: 16px; }
+.banner-arrow--next { right: 16px; }
+
+/* Redução das setas em mobile */
+@media (max-width: 480px) {
+  .banner-arrow {
+    width: 38px;
+    height: 38px;
+  }
+  .banner-arrow svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* ── Indicadores de Paginação (Bolinhas) ── */
+.banner-dots {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.banner-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.25s ease, transform 0.25s ease, width 0.25s ease;
+}
+
+/* Estilo da bolinha correspondente ao slide atual */
+.banner-dot.is-active {
+  background: var(--cor-destaque);
+  border-color: var(--cor-destaque);
+  width: 24px;
+  border-radius: 5px;
+  transform: scale(1.1);
+}
+
+.banner-dot:hover:not(.is-active) {
+  background: rgba(255, 255, 255, 0.75);
+  transform: scale(1.15);
+}
+
+/* Ajustes mobile para as bolinhas */
+@media (max-width: 480px) {
+  .banner-dots {
+    bottom: 10px;
+  }
+  .banner-dot { width: 8px; height: 8px; }
+  .banner-dot.is-active { width: 20px; }
+}
