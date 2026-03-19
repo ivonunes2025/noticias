@@ -1,0 +1,440 @@
+---
+// src/components/NewsletterForm.astro
+// Formulário de subscrição à newsletter.
+// Funciona tanto para visitantes anónimos (pede email) como para utilizadores
+// autenticados (mostra toggle de subscrição/cancelamento).
+
+interface Props {
+  variant?: 'inline' | 'card';   // "inline" = barra estreita, "card" = caixa com mais padding
+  titulo?: string;
+  descricao?: string;
+}
+
+const {
+  variant     = 'card',
+  titulo      = 'Fique sempre informado',
+  descricao   = 'Subscreva a nossa newsletter e receba as últimas notícias diretamente no seu email.',
+} = Astro.props;
+
+// Se o utilizador estiver autenticado, vai buscar o estado atual de subscrição
+const jwt = Astro.cookies.get('jwt')?.value;
+let isAuthenticated = false;
+let isSubscrito     = false;
+
+if (jwt) {
+  try {
+    const STRAPI = import.meta.env.STRAPI_URL?.replace(/\/$/, '');
+    const res    = await fetch(`${STRAPI}/api/users/me`, {
+      headers: { Authorization: `Bearer ${jwt}` },
+    });
+    if (res.ok) {
+      const me        = await res.json();
+      isAuthenticated = true;
+      isSubscrito     = me.newsletter_subscrito ?? false;
+    }
+  } catch {
+    // ignora em silêncio
+  }
+}
+---
+
+<div class={`newsletter-form newsletter-form--${variant}`}>
+  <!-- Ícone decorativo -->
+  <div class="newsletter-icon" aria-hidden="true">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+      <polyline points="22,6 12,13 2,6"/>
+    </svg>
+  </div>
+
+  <!-- Cabeçalho -->
+  <div class="newsletter-header">
+    <h3 class="newsletter-titulo">{titulo}</h3>
+    {variant === 'card' && <p class="newsletter-desc">{descricao}</p>}
+  </div>
+
+  <!-- ── Utilizador autenticado: toggle de preferência ── -->
+  {isAuthenticated ? (
+    <div class="newsletter-toggle-wrapper">
+      <label class="toggle-label" for="newsletter-toggle">
+        <div class="toggle-track" id="toggle-track">
+          <input
+            type="checkbox"
+            id="newsletter-toggle"
+            checked={isSubscrito}
+            aria-label="Subscrever newsletter"
+          />
+          <span class="toggle-thumb"></span>
+        </div>
+        <span id="toggle-text" class="toggle-text">
+          {isSubscrito ? 'Subscrito' : 'Subscrever'}
+        </span>
+      </label>
+      <span id="newsletter-status" class="newsletter-status"></span>
+    </div>
+  ) : (
+    <!-- ── Visitante anónimo: campo de email ── -->
+    <form id="newsletter-anon-form" class="newsletter-anon-form" novalidate>
+      <div class="newsletter-input-row">
+        <input
+          type="email"
+          id="newsletter-email"
+          name="email"
+          placeholder="O seu email..."
+          autocomplete="email"
+          required
+          class="newsletter-input"
+        />
+        <button type="submit" class="newsletter-btn">
+          <span id="newsletter-btn-text">Subscrever</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </button>
+      </div>
+      <p id="newsletter-anon-status" class="newsletter-status" aria-live="polite"></p>
+    </form>
+  )}
+</div>
+
+<script>
+  // ── Toggle para utilizadores autenticados ─────────────────────────────────
+  function setupToggle() {
+    const toggle  = document.getElementById('newsletter-toggle') as HTMLInputElement | null;
+    const text    = document.getElementById('toggle-text');
+    const status  = document.getElementById('newsletter-status');
+    const track   = document.getElementById('toggle-track');
+
+    if (!toggle) return;
+
+    toggle.addEventListener('change', async () => {
+      const subscrito = toggle.checked;
+      if (text)  text.textContent  = 'A guardar...';
+      if (status) status.textContent = '';
+
+      try {
+        const res = await fetch('/api/newsletter', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ subscrito }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          if (text) text.textContent = subscrito ? 'Subscrito' : 'Subscrever';
+          if (status) {
+            status.textContent  = subscrito ? 'Preferência guardada!' : 'Subscrição cancelada.';
+            status.className    = `newsletter-status ${subscrito ? 'success' : 'muted'} show`;
+            setTimeout(() => status.classList.remove('show'), 3000);
+          }
+        } else {
+          toggle.checked = !subscrito;       // reverte o toggle
+          if (text) text.textContent = !subscrito ? 'Subscrito' : 'Subscrever';
+          if (status) {
+            status.textContent = data.error || 'Erro ao guardar.';
+            status.className   = 'newsletter-status error show';
+          }
+        }
+      } catch {
+        toggle.checked = !subscrito;
+        if (text) text.textContent = !subscrito ? 'Subscrito' : 'Subscrever';
+        if (status) {
+          status.textContent = 'Erro de ligação.';
+          status.className   = 'newsletter-status error show';
+        }
+      }
+    });
+  }
+
+  // ── Formulário anónimo ────────────────────────────────────────────────────
+  function setupAnonForm() {
+    const form   = document.getElementById('newsletter-anon-form') as HTMLFormElement | null;
+    const input  = document.getElementById('newsletter-email') as HTMLInputElement | null;
+    const status = document.getElementById('newsletter-anon-status');
+    const btnTxt = document.getElementById('newsletter-btn-text');
+
+    if (!form || !input) return;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const email = input.value.trim();
+      if (!email || !email.includes('@')) {
+        if (status) {
+          status.textContent = 'Por favor, insira um email válido.';
+          status.className   = 'newsletter-status error show';
+        }
+        return;
+      }
+
+      const btn = form.querySelector('.newsletter-btn') as HTMLButtonElement;
+      if (btn)    btn.disabled = true;
+      if (btnTxt) btnTxt.textContent = 'A enviar...';
+      if (status) { status.textContent = ''; status.className = 'newsletter-status'; }
+
+      try {
+        const res  = await fetch('/api/newsletter', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ email, subscrito: true }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          if (status) {
+            status.textContent = 'Subscrição confirmada! Obrigado.';
+            status.className   = 'newsletter-status success show';
+          }
+          input.value      = '';
+          if (btnTxt) btnTxt.textContent = 'Enviado!';
+        } else {
+          if (status) {
+            status.textContent = data.error || 'Erro ao subscrever.';
+            status.className   = 'newsletter-status error show';
+          }
+          if (btnTxt) btnTxt.textContent = 'Subscrever';
+          if (btn)    btn.disabled = false;
+        }
+      } catch {
+        if (status) {
+          status.textContent = 'Erro de ligação. Tente novamente.';
+          status.className   = 'newsletter-status error show';
+        }
+        if (btnTxt) btnTxt.textContent = 'Subscrever';
+        if (btn)    btn.disabled = false;
+      }
+    });
+  }
+
+  setupToggle();
+  setupAnonForm();
+  document.addEventListener('astro:after-swap', () => {
+    setupToggle();
+    setupAnonForm();
+  });
+</script>
+
+<style>
+  /* ── Contentor ───────────────────────────────────────────────── */
+  .newsletter-form {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .newsletter-form--card {
+    flex-direction: column;
+    background: var(--cor-fundo-card);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio);
+    padding: 32px;
+  }
+
+  .newsletter-form--inline {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+    background: transparent;
+  }
+
+  /* ── Ícone ───────────────────────────────────────────────────── */
+  .newsletter-icon {
+    color: var(--cor-destaque);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .newsletter-form--inline .newsletter-icon {
+    display: none;
+  }
+
+  /* ── Cabeçalho ───────────────────────────────────────────────── */
+  .newsletter-header {
+    flex: 1;
+  }
+
+  .newsletter-titulo {
+    font-family: var(--fonte-titulo);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--cor-principal);
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+
+  .newsletter-desc {
+    font-size: 0.9rem;
+    color: var(--cor-texto-suave);
+    margin: 0 0 16px;
+    max-width: 500px;
+    line-height: 1.5;
+  }
+
+  /* ── Formulário anónimo ──────────────────────────────────────── */
+  .newsletter-anon-form {
+    width: 100%;
+  }
+
+  .newsletter-input-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  .newsletter-input {
+    flex: 1;
+    padding: 10px 16px;
+    background: var(--cor-fundo);
+    border: 1px solid var(--cor-borda);
+    border-radius: 8px;
+    color: var(--cor-texto);
+    font-family: var(--fonte-corpo);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s ease;
+    min-width: 0;
+  }
+
+  .newsletter-input::placeholder {
+    color: var(--cor-texto-suave);
+  }
+
+  .newsletter-input:focus {
+    border-color: var(--cor-destaque);
+  }
+
+  .newsletter-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--cor-destaque);
+    color: var(--cor-fundo);
+    border: none;
+    border-radius: 8px;
+    font-family: var(--fonte-corpo);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .newsletter-btn:hover:not(:disabled) {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+  }
+
+  .newsletter-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  /* ── Toggle autenticado ──────────────────────────────────────── */
+  .newsletter-toggle-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .toggle-track {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: var(--cor-borda);
+    border-radius: 12px;
+    transition: background 0.25s ease;
+    flex-shrink: 0;
+  }
+
+  .toggle-track:has(input:checked) {
+    background: var(--cor-destaque);
+  }
+
+  .toggle-track input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    margin: 0;
+    z-index: 1;
+  }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.25s ease;
+    pointer-events: none;
+  }
+
+  .toggle-track:has(input:checked) .toggle-thumb {
+    transform: translateX(20px);
+  }
+
+  .toggle-text {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--cor-principal);
+  }
+
+  /* ── Mensagens de estado ─────────────────────────────────────── */
+  .newsletter-status {
+    font-size: 0.82rem;
+    margin-top: 10px;
+    display: block;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .newsletter-status.show    { opacity: 1; }
+  .newsletter-status.success { color: #4caf50; }
+  .newsletter-status.error   { color: #f44336; }
+  .newsletter-status.muted   { color: var(--cor-texto-suave); }
+
+  /* ── Inline variant ──────────────────────────────────────────── */
+  .newsletter-form--inline .newsletter-titulo {
+    font-size: 1rem;
+    margin-bottom: 0;
+  }
+
+  .newsletter-form--inline .newsletter-anon-form {
+    width: auto;
+    flex: 1;
+    min-width: 260px;
+  }
+
+  .newsletter-form--inline .newsletter-status {
+    display: none;
+  }
+
+  /* ── Responsivo ──────────────────────────────────────────────── */
+  @media (max-width: 560px) {
+    .newsletter-input-row {
+      flex-direction: column;
+    }
+
+    .newsletter-btn {
+      justify-content: center;
+    }
+  }
+</style>

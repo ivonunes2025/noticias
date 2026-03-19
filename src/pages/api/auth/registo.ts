@@ -18,13 +18,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const res = await fetch(`${STRAPI_URL}/api/auth/local/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // O username técnico passa a ser o email para garantir unicidade,
-      // mas o Strapi também valida o campo email separadamente.
+      // Para permitir nomes duplicados, usamos o email como 'username' único no Strapi.
+      // Se quiser guardar o nome real (ex: João Pedro) para sempre, 
+      // deve criar o campo 'nome' no Content-Type 'User' do Strapi.
       body: JSON.stringify({ 
-        username: email, // Usamos o email como identificador único (username)
+        username: email, // Email serve como identificador único
         email, 
-        password,
-        nome: username // Se tiver um campo 'nome' no User do Strapi, ele guarda aqui
+        password
+        // nome: username // Ative esta linha APÓS criar o campo 'nome' no Strapi
       }),
     });
 
@@ -35,7 +36,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       
       // Tradução amigável para erro de duplicado
       if (msg.includes('Email') || msg.includes('Username')) {
-        msg = 'Este e-mail já está em uso por outra conta.';
+        msg = 'Este e-mail ou nome de utilizador já está em uso por outra conta.';
       }
       
       return new Response(JSON.stringify({ error: msg }), { status: 400 });

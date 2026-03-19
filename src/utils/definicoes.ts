@@ -11,6 +11,9 @@ export interface Definicoes {
   facebookUrl: string | null;
   instagramUrl: string | null;
   websiteUrl: string | null;
+  newsletterTitulo: string | null;
+  newsletterDescricao: string | null;
+  newsletterPlaceholder: string | null;
 }
 
 export async function getDefinicoes(): Promise<Definicoes> {
@@ -24,13 +27,16 @@ export async function getDefinicoes(): Promise<Definicoes> {
     facebookUrl: null,
     instagramUrl: null,
     websiteUrl: null,
+    newsletterTitulo: 'Subscreva a nossa Newsletter',
+    newsletterDescricao: 'Receba as últimas notícias diretamente no seu email.',
+    newsletterPlaceholder: 'O seu email...',
   };
 
   if (!STRAPI) return fallback;
 
   try {
     const res = await fetch(
-      `${STRAPI}/api/definicaos?populate[favicon][fields][0]=url&populate[logo][fields][0]=url&populate[menu_principal][fields][0]=slug&populate[menu_footer][fields][0]=slug&pagination[pageSize]=1`
+      `${STRAPI}/api/definicaos?populate[favicon][fields][0]=url&populate[logo][fields][0]=url&populate[menu_principal][fields][0]=slug&populate[menu_footer][fields][0]=slug&populate[newsletter]=*&pagination[pageSize]=1`
     );
 
     if (!res.ok) {
@@ -58,6 +64,9 @@ export async function getDefinicoes(): Promise<Definicoes> {
     const instagram = redes.instagram_url ?? redes.instagramUrl ?? redes.instagram ?? null;
     const website = redes.website_url ?? redes.websiteUrl ?? redes.website ?? null;
 
+    // Tenta obter dados da newsletter
+    const newsletter = data.newsletter ?? {};
+
     return {
       favicon: getImageUrl(data.favicon),
       logo: getImageUrl(data.logo),
@@ -66,6 +75,9 @@ export async function getDefinicoes(): Promise<Definicoes> {
       facebookUrl: facebook,
       instagramUrl: instagram,
       websiteUrl: website,
+      newsletterTitulo: newsletter.titulo ?? newsletter.title ?? fallback.newsletterTitulo,
+      newsletterDescricao: newsletter.descricao ?? newsletter.description ?? fallback.newsletterDescricao,
+      newsletterPlaceholder: newsletter.placeholder ?? fallback.newsletterPlaceholder,
     };
 
   } catch (e) {

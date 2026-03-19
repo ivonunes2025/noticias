@@ -15,6 +15,10 @@ const menuFooterSlug = definicoes.menuFooterSlug ?? 'menu-footer';
 // Busca o menu footer com os seus itens
 const menuFooter = await getMenu(menuFooterSlug);
 const itensFooter: MenuItem[] = menuFooter?.itens ?? [];
+
+// Verifica se o utilizador está autenticado
+const user = Astro.cookies.get('user_name')?.value;
+const showNewsletter = !user;
 ---
 
 <footer class="footer">
@@ -28,6 +32,28 @@ const itensFooter: MenuItem[] = menuFooter?.itens ?? [];
       <p class="footer-desc">
         {SITE_CONFIG.descricao}
       </p>
+
+      {showNewsletter && (
+        <div class="footer-newsletter">
+          <h4>{definicoes.newsletterTitulo}</h4>
+          <p>{definicoes.newsletterDescricao}</p>
+          <form class="newsletter-form" id="newsletter-footer-form">
+            <input 
+              type="email" 
+              placeholder={definicoes.newsletterPlaceholder} 
+              required 
+              aria-label="Email para newsletter"
+            />
+            <button type="submit" class="btn-newsletter">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </form>
+          <div id="newsletter-message" class="newsletter-message"></div>
+        </div>
+      )}
     </div>
 
     <!-- Navegação do footer vinda do Strapi -->
@@ -116,3 +142,60 @@ const itensFooter: MenuItem[] = menuFooter?.itens ?? [];
     </div>
   </div>
 </footer>
+
+<script define:vars={{ STRAPI_URL: import.meta.env.STRAPI_URL }}>
+  // Lógica para o formulário de newsletter enviando para o Strapi
+  const form = document.getElementById('newsletter-footer-form');
+  const messageDiv = document.getElementById('newsletter-message');
+
+  if (form && messageDiv) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = form.querySelector('input');
+      const email = input.value;
+
+      try {
+        form.classList.add('is-loading');
+        messageDiv.textContent = 'A enviar...';
+        messageDiv.className = 'newsletter-message';
+        
+        const baseUrl = STRAPI_URL.replace(/\/$/, '');
+        
+        // Envio para o Strapi com TODOS os campos da sua imagem
+        const response = await fetch(`${baseUrl}/api/newsletter-subscritos`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            data: {
+              email: email,
+              subscrito: true,
+              data_subscricao: new Date().toISOString()
+            }
+          }),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          console.log('Sucesso:', result);
+          messageDiv.textContent = 'Obrigado por subscrever!';
+          messageDiv.className = 'newsletter-message is-success';
+          form.reset();
+        } else {
+          console.error('Erro detalhado do Strapi:', result);
+          const errorMsg = result.error?.message || 'Erro de permissão no Strapi (Public > Create).';
+          messageDiv.textContent = `Erro: ${errorMsg}`;
+          messageDiv.className = 'newsletter-message is-error';
+        }
+      } catch (err) {
+        console.error('Erro de rede/ligação:', err);
+        messageDiv.textContent = 'Erro de ligação. O servidor Strapi está ativo?';
+        messageDiv.className = 'newsletter-message is-error';
+      } finally {
+        form.classList.remove('is-loading');
+      }
+    });
+  }
+</script>

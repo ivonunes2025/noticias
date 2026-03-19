@@ -3,6 +3,7 @@ import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
 import SectionHeader from "../components/SectionHeader.astro";
 import { getCategorias, normalize } from "../utils/strapi";
+import NewsletterForm from "../components/NewsletterForm.astro";
 
 const user = Astro.cookies.get('user_name')?.value;
 if (!user) return Astro.redirect('/login');
@@ -85,6 +86,13 @@ const categorias = normalize(rawCategorias);
           </div>
         </div>
       </section>
+
+      <section class="perfil-section" id="newsletter">
+        <h2>Newsletter</h2>
+        <p class="instruction">Escolha se deseja receber as nossas notícias por email.</p>
+        <NewsletterForm variant="card" titulo="Receba as notícias por email" />
+      </section>
+
     </div>
   </div>
 </Layout>
@@ -188,7 +196,6 @@ const categorias = normalize(rawCategorias);
     margin-bottom: 24px;
   }
 
-  /* Categorias Grid */
   .categorias-grid {
     display: flex;
     flex-wrap: wrap;
@@ -222,7 +229,6 @@ const categorias = normalize(rawCategorias);
     box-shadow: 0 4px 12px rgba(200, 150, 62, 0.2);
   }
 
-  /* Save Actions */
   .save-actions {
     display: flex;
     align-items: center;
@@ -257,7 +263,6 @@ const categorias = normalize(rawCategorias);
     color: #4caf50;
   }
 
-  /* Temas Grid */
   .temas-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -302,7 +307,6 @@ const categorias = normalize(rawCategorias);
     background: linear-gradient(135deg, #000000 0%, #ffffff 100%);
   }
 
-  /* Notificações Styles */
   .notif-options {
     display: flex;
     flex-direction: column;
@@ -360,7 +364,6 @@ const categorias = normalize(rawCategorias);
     color: var(--cor-fundo);
   }
 
-  /* Switch Toggle */
   .switch {
     position: relative;
     display: inline-block;
@@ -413,7 +416,6 @@ const categorias = normalize(rawCategorias);
     border-radius: 50%;
   }
 
-  /* ── CARROSSEL DE GUARDADOS ── */
   .perfil-section .carrossel {
     padding: 0 48px;
     margin: 0 -24px;
@@ -433,7 +435,6 @@ const categorias = normalize(rawCategorias);
     .perfil-section .carrossel-slide { flex: 0 0 32%; }
   }
 
-  /* Estilos para os cartões injetados via JS (imitando CardNoticia.astro) */
   :global(.perfil-section .noticia-card) {
     text-decoration: none !important;
     color: inherit !important;
@@ -524,7 +525,6 @@ const categorias = normalize(rawCategorias);
     transform: scale(1.1) rotate(5deg);
   }
 
-  /* Estilos do Modal de Confirmação */
   :global(.confirm-modal-overlay) {
     position: fixed;
     inset: 0;
@@ -616,7 +616,6 @@ const categorias = normalize(rawCategorias);
 </style>
 
 <script>
-  // Funções de Cookies
   function getCookie(name: string) {
     const nameEQ = name + "=";
     const ca = document.cookie.split(";");
@@ -628,16 +627,13 @@ const categorias = normalize(rawCategorias);
     return null;
   }
 
-  // ── Lógica de Foto de Perfil (Vinculada ao Utilizador) ──
   const photoInput = document.getElementById('profile-upload') as HTMLInputElement;
   const photoPreview = document.getElementById('profile-preview');
   const statusMsg = document.getElementById('status-msg');
   
-  // Obtém o nome do utilizador atual para vincular a foto
   const currentUser = getCookie('user_name');
   const photoKey = currentUser ? `profile-photo-${currentUser}` : 'profile-photo-guest';
 
-  // Carregar foto salva para ESTE utilizador
   const savedPhoto = localStorage.getItem(photoKey);
   if (savedPhoto && photoPreview) {
     photoPreview.innerHTML = `<img src="${savedPhoto}" alt="Foto de Perfil" />`;
@@ -651,9 +647,7 @@ const categorias = normalize(rawCategorias);
         const base64 = event.target?.result as string;
         if (photoPreview) {
           photoPreview.innerHTML = `<img src="${base64}" alt="Foto de Perfil" />`;
-          // Salva no localStorage com a chave única do utilizador
           localStorage.setItem(photoKey, base64);
-          
           if (statusMsg) {
             statusMsg.textContent = 'Foto atualizada!';
             statusMsg.classList.add('success');
@@ -668,11 +662,9 @@ const categorias = normalize(rawCategorias);
     }
   });
 
-  // ── Lógica de Categorias ──
   const saveBtn = document.getElementById('save-prefs');
   const checkboxes = document.querySelectorAll('input[name="categorias"]') as NodeListOf<HTMLInputElement>;
 
-  // Carregar guardadas
   const userPrefs = localStorage.getItem(`prefs-${currentUser}`);
   if (userPrefs) {
     const savedCats = JSON.parse(userPrefs);
@@ -685,9 +677,7 @@ const categorias = normalize(rawCategorias);
     const selected = Array.from(checkboxes)
       .filter((cb) => cb.checked)
       .map((cb) => cb.value);
-    
     localStorage.setItem(`prefs-${currentUser}`, JSON.stringify(selected));
-    
     if (statusMsg) {
       statusMsg.textContent = 'Preferências guardadas!';
       statusMsg.classList.add('success');
@@ -698,10 +688,7 @@ const categorias = normalize(rawCategorias);
     }
   });
 
-  // ── Lógica de Temas ──
   const themeCards = document.querySelectorAll('.tema-card');
-  
-  // Marcar ativo
   const currentTheme = localStorage.getItem('theme') || 'default';
   themeCards.forEach(card => {
     if (card.getAttribute('data-theme') === currentTheme) {
@@ -713,24 +700,17 @@ const categorias = normalize(rawCategorias);
     card.addEventListener('click', () => {
       const theme = card.getAttribute('data-theme');
       if (!theme) return;
-
-      // Aplicar visualmente
       if (theme === 'default') {
         document.documentElement.removeAttribute('data-theme');
       } else {
         document.documentElement.setAttribute('data-theme', theme);
       }
-
-      // Atualizar UI
       themeCards.forEach(c => c.classList.remove('active'));
       card.classList.add('active');
-
-      // Guardar
       localStorage.setItem('theme', theme);
     });
   });
 
-  // --- Lógica de Notícias Guardadas ---
   function updateSavedNews() {
     const container = document.getElementById('saved-news-container');
     if (!container) return;
@@ -777,13 +757,10 @@ const categorias = normalize(rawCategorias);
       </div>
     `).join('');
 
-    // Adicionar eventos para os botões de remover
     container.querySelectorAll('.remove-saved-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const id = btn.getAttribute('data-id');
         if (!id) return;
-        
-        // Criar Modal de Confirmação
         const modal = document.createElement('div');
         modal.className = 'confirm-modal-overlay';
         modal.innerHTML = `
@@ -796,17 +773,11 @@ const categorias = normalize(rawCategorias);
           </div>
         `;
         document.body.appendChild(modal);
-
-        // Lógica dos botões do modal
-        modal.querySelector('.no')?.addEventListener('click', () => {
-          modal.remove();
-        });
-
+        modal.querySelector('.no')?.addEventListener('click', () => modal.remove());
         modal.querySelector('.yes')?.addEventListener('click', () => {
           let saved = JSON.parse(localStorage.getItem('ler-depois') || '[]');
           saved = saved.filter((n: any) => n.id !== id);
           localStorage.setItem('ler-depois', JSON.stringify(saved));
-          
           window.dispatchEvent(new CustomEvent('bookmarks-updated'));
           updateSavedNews();
           modal.remove();
@@ -814,41 +785,28 @@ const categorias = normalize(rawCategorias);
       });
     });
 
-    // Lógica do Carrossel (Igual à main page)
     const carrossel = container.closest('.carrossel');
     if (carrossel && news.length > 0) {
       const prevBtn = carrossel.querySelector('.carrossel-arrow.carrossel-prev') as HTMLButtonElement;
       const nextBtn = carrossel.querySelector('.carrossel-arrow.carrossel-next') as HTMLButtonElement;
       const slides = carrossel.querySelectorAll('.carrossel-slide');
-      
       if (prevBtn && nextBtn && slides.length > 0) {
         prevBtn.style.display = 'flex';
         nextBtn.style.display = 'flex';
-        
         const slideWidth = (slides[0] as HTMLElement).offsetWidth + 24;
-        
         prevBtn.onclick = () => container.scrollBy({ left: -slideWidth, behavior: 'smooth' });
         nextBtn.onclick = () => container.scrollBy({ left: slideWidth, behavior: 'smooth' });
-
-        // Drag scroll
         let isDown = false;
         let startX: number;
         let scrollLeft: number;
-
         container.onmousedown = (e: MouseEvent) => {
           isDown = true;
           container.classList.add('active');
           startX = e.pageX - container.offsetLeft;
           scrollLeft = container.scrollLeft;
         };
-        container.onmouseleave = () => {
-          isDown = false;
-          container.classList.remove('active');
-        };
-        container.onmouseup = () => {
-          isDown = false;
-          container.classList.remove('active');
-        };
+        container.onmouseleave = () => { isDown = false; container.classList.remove('active'); };
+        container.onmouseup = () => { isDown = false; container.classList.remove('active'); };
         container.onmousemove = (e: MouseEvent) => {
           if (!isDown) return;
           e.preventDefault();
@@ -860,11 +818,7 @@ const categorias = normalize(rawCategorias);
     }
   }
 
-  // Inicialização
   updateSavedNews();
-
   window.addEventListener('bookmarks-updated', updateSavedNews);
-  document.addEventListener('astro:after-swap', () => {
-    updateSavedNews();
-  });
+  document.addEventListener('astro:after-swap', () => { updateSavedNews(); });
 </script>
