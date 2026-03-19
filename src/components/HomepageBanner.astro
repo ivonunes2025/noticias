@@ -1,0 +1,419 @@
+---
+/**
+ * HomepageBanner.astro
+ * 
+ * Slideshow do banner da homepage gerido pelo cliente no Strapi.
+ * 
+ * Comportamento:
+ *  - 1 imagem  → mostra só o banner, sem setas nem bolinhas
+ *  - 2-3 imagens → slideshow automático com setas e bolinhas de paginação
+ * 
+ * Strapi: Collection Type "homepage-banner" com campos:
+ *   - imagem_1 (Media, obrigatório)
+ *   - imagem_2 (Media, opcional)
+ *   - imagem_3 (Media, opcional)
+ *   - link_1, link_2, link_3 (Text, opcional) – destino ao clicar no banner
+ *   - ativo (Boolean) – se false, o banner não aparece
+ */
+
+import { getImageUrl } from "../utils/strapi";
+
+const STRAPI = import.meta.env.STRAPI_URL?.replace(/\/$/, '');
+
+interface BannerSlide {
+  url: string;
+  link: string | null;
+  alt: string;
+}
+
+let slides: BannerSlide[] = [];
+
+try {
+  const res = await fetch(
+    `${STRAPI}/api/homepage-banners?populate[imagem_1][fields][0]=url&populate[imagem_1][fields][1]=alternativeText&populate[imagem_2][fields][0]=url&populate[imagem_2][fields][1]=alternativeText&populate[imagem_3][fields][0]=url&populate[imagem_3][fields][1]=alternativeText&pagination[pageSize]=1&sort=createdAt:desc`
+  );
+
+  if (res.ok) {
+    const json = await res.json();
+    const raw = json.data?.[0];
+
+    if (raw) {
+      const data = raw?.attributes ?? raw;
+
+      // Só mostra se ativo !== false (campo opcional; se não existir, mostra por defeito)
+      if (data.ativo !== false) {
+        const imagens = [
+          { media: data.imagem_1, link: data.link_1 ?? null },
+          { media: data.imagem_2, link: data.link_2 ?? null },
+          { media: data.imagem_3, link: data.link_3 ?? null },
+        ];
+
+        for (const { media, link } of imagens) {
+          const url = getImageUrl(media);
+          if (url) {
+            const alt =
+              media?.alternativeText ??
+              media?.attributes?.alternativeText ??
+              media?.data?.attributes?.alternativeText ??
+              "Banner";
+            slides.push({ url, link, alt });
+          }
+        }
+      }
+    }
+  }
+} catch (e) {
+  console.warn("[HomepageBanner] Não foi possível carregar o banner:", e);
+}
+
+const hasMultiple = slides.length > 1;
+const hasBanner = slides.length > 0;
+---
+
+{hasBanner && (
+  <div
+    id="homepage-banner"
+    class={`banner-wrapper ${hasMultiple ? "banner--slideshow" : "banner--single"}`}
+    aria-label="Banner principal"
+    role="region"
+  >
+    <!-- SLIDES -->
+    <div class="banner-track" id="banner-track">
+      {slides.map((slide, i) => (
+        <div
+          class={`banner-slide ${i === 0 ? "is-active" : ""}`}
+          data-index={i}
+          aria-hidden={i !== 0}
+        >
+          {slide.link ? (
+            <a href={slide.link} class="banner-link" tabindex={i === 0 ? 0 : -1}>
+              <img
+                src={slide.url}
+                alt={slide.alt}
+                class="banner-img"
+                loading={i === 0 ? "eager" : "lazy"}
+                fetchpriority={i === 0 ? "high" : "auto"}
+              />
+            </a>
+          ) : (
+            <img
+              src={slide.url}
+              alt={slide.alt}
+              class="banner-img"
+              loading={i === 0 ? "eager" : "lazy"}
+              fetchpriority={i === 0 ? "high" : "auto"}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+
+    <!-- SETAS (só se múltiplos slides) -->
+    {hasMultiple && (
+      <>
+        <button
+          class="banner-arrow banner-arrow--prev"
+          id="banner-prev"
+          aria-label="Slide anterior"
+          type="button"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+
+        <button
+          class="banner-arrow banner-arrow--next"
+          id="banner-next"
+          aria-label="Próximo slide"
+          type="button"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+
+        <!-- BOLINHAS DE PAGINAÇÃO -->
+        <div class="banner-dots" role="tablist" aria-label="Selecionar slide">
+          {slides.map((_, i) => (
+            <button
+              class={`banner-dot ${i === 0 ? "is-active" : ""}`}
+              data-dot={i}
+              role="tab"
+              aria-label={`Slide ${i + 1}`}
+              aria-selected={i === 0}
+              type="button"
+            />
+          ))}
+        </div>
+      </>
+    )}
+  </div>
+)}
+
+<style>
+  /* ── Wrapper ── */
+  .banner-wrapper {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    background: var(--cor-fundo-card);
+  }
+
+  /* Rácio 21:9 em desktop, 16:9 em mobile */
+  .banner-wrapper::before {
+    content: "";
+    display: block;
+    padding-top: 28%;  /* ~21:6 */
+  }
+
+  @media (max-width: 768px) {
+    .banner-wrapper::before {
+      padding-top: 56.25%; /* 16:9 */
+    }
+  }
+
+  /* ── Track e Slides ── */
+  .banner-track {
+    position: absolute;
+    inset: 0;
+  }
+
+  .banner-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+
+  .banner-slide.is-active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .banner-link {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .banner-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    border-radius: 0;
+    box-shadow: none;
+    display: block;
+  }
+
+  /* ── Overlay escuro suave (melhora legibilidade das setas) ── */
+  .banner--slideshow .banner-track::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      transparent 55%,
+      rgba(0, 0, 0, 0.35) 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ── Setas ── */
+  .banner-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    padding: 0;
+  }
+
+  .banner-arrow:hover {
+    background: var(--cor-destaque);
+    border-color: var(--cor-destaque);
+    transform: translateY(-50%) scale(1.08);
+  }
+
+  .banner-arrow--prev { left: 16px; }
+  .banner-arrow--next { right: 16px; }
+
+  @media (max-width: 480px) {
+    .banner-arrow {
+      width: 38px;
+      height: 38px;
+    }
+    .banner-arrow svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  /* ── Bolinhas ── */
+  .banner-dots {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .banner-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.45);
+    border: 1.5px solid rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.25s ease, transform 0.25s ease, width 0.25s ease;
+  }
+
+  .banner-dot.is-active {
+    background: var(--cor-destaque);
+    border-color: var(--cor-destaque);
+    width: 24px;
+    border-radius: 5px;
+    transform: scale(1.1);
+  }
+
+  .banner-dot:hover:not(.is-active) {
+    background: rgba(255, 255, 255, 0.75);
+    transform: scale(1.15);
+  }
+
+  @media (max-width: 480px) {
+    .banner-dots {
+      bottom: 10px;
+    }
+    .banner-dot { width: 8px; height: 8px; }
+    .banner-dot.is-active { width: 20px; }
+  }
+</style>
+
+<script>
+  /**
+   * Lógica do slideshow do banner.
+   * Auto-play a cada 5 segundos, pausa ao passar o rato.
+   * Suporte a swipe em mobile.
+   */
+  function initBanner() {
+    const wrapper = document.getElementById("homepage-banner");
+    if (!wrapper) return;
+
+    const slides = Array.from(wrapper.querySelectorAll<HTMLElement>(".banner-slide"));
+    if (slides.length <= 1) return; // Só 1 imagem → nada a fazer
+
+    const dots = Array.from(wrapper.querySelectorAll<HTMLElement>(".banner-dot"));
+    const prevBtn = document.getElementById("banner-prev");
+    const nextBtn = document.getElementById("banner-next");
+
+    let current = 0;
+    let autoPlayTimer: ReturnType<typeof setInterval> | null = null;
+    const INTERVAL = 5000; // 5 segundos
+
+    // ── Ir para um slide específico ──
+    function goTo(index: number) {
+      slides[current].classList.remove("is-active");
+      slides[current].setAttribute("aria-hidden", "true");
+      dots[current]?.classList.remove("is-active");
+      dots[current]?.setAttribute("aria-selected", "false");
+
+      // Link do slide anterior fica inacessível por teclado
+      slides[current].querySelector<HTMLAnchorElement>("a")?.setAttribute("tabindex", "-1");
+
+      current = (index + slides.length) % slides.length;
+
+      slides[current].classList.add("is-active");
+      slides[current].setAttribute("aria-hidden", "false");
+      dots[current]?.classList.add("is-active");
+      dots[current]?.setAttribute("aria-selected", "true");
+
+      // Link do slide ativo fica acessível por teclado
+      slides[current].querySelector<HTMLAnchorElement>("a")?.setAttribute("tabindex", "0");
+    }
+
+    // ── Auto-play ──
+    function startAutoPlay() {
+      stopAutoPlay();
+      autoPlayTimer = setInterval(() => goTo(current + 1), INTERVAL);
+    }
+
+    function stopAutoPlay() {
+      if (autoPlayTimer) {
+        clearInterval(autoPlayTimer);
+        autoPlayTimer = null;
+      }
+    }
+
+    // ── Eventos dos botões ──
+    prevBtn?.addEventListener("click", () => { goTo(current - 1); startAutoPlay(); });
+    nextBtn?.addEventListener("click", () => { goTo(current + 1); startAutoPlay(); });
+
+    // ── Eventos das bolinhas ──
+    dots.forEach((dot, i) => {
+      dot.addEventListener("click", () => { goTo(i); startAutoPlay(); });
+    });
+
+    // ── Pausa ao hover ──
+    wrapper.addEventListener("mouseenter", stopAutoPlay);
+    wrapper.addEventListener("mouseleave", startAutoPlay);
+
+    // ── Suporte a swipe em mobile ──
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    wrapper.addEventListener("touchstart", (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    wrapper.addEventListener("touchend", (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      const diff = touchStartX - touchEndX;
+      if (Math.abs(diff) > 50) {
+        goTo(diff > 0 ? current + 1 : current - 1);
+        startAutoPlay();
+      }
+    }, { passive: true });
+
+    // ── Teclado (acessibilidade) ──
+    wrapper.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") { goTo(current - 1); startAutoPlay(); }
+      if (e.key === "ArrowRight") { goTo(current + 1); startAutoPlay(); }
+    });
+
+    // ── Pausa quando o utilizador sai da aba ──
+    document.addEventListener("visibilitychange", () => {
+      document.hidden ? stopAutoPlay() : startAutoPlay();
+    });
+
+    // Inicia o auto-play
+    startAutoPlay();
+  }
+
+  // Corre na carga inicial e após navegações do Astro
+  initBanner();
+  document.addEventListener("astro:after-swap", initBanner);
+</script>

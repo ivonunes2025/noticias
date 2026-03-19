@@ -2,22 +2,26 @@
 // Layout base do site:
 // - injeta CSS global
 // - define fontes/título/metadata
+// - aplica a fonte escolhida nas Definições do Strapi
 import "../styles/global.css";
 import Footer from "../components/Footer.astro";
 import CookieConsent from "../components/CookieConsent.astro";
-import { getDefinicoes } from "../utils/definicoes";
+import { getDefinicoes, getFontUrl, getFontCssValue } from "../utils/definicoes";
 
-// 1. Headers de Cache (Stale-While-Revalidate) para Performance
-// Nota: Em produção, o servidor (Node/Vercel/etc) usará estes headers
+// Headers de Cache
 Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=30');
 
-// Busca definições globais (favicon, etc)
+// Busca definições globais (favicon, logo, fonte, etc)
 const definicoes = await getDefinicoes();
 
-// Título da página, com valor por omissão se não for passado via props
+// Fonte escolhida no Strapi
+const fontUrl = getFontUrl(definicoes.fontFamily);
+const fontCssValue = getFontCssValue(definicoes.fontFamily);
+
+// Título da página
 const { titulo = "Notícias Básicas", lcpImage } = Astro.props;
 
-// Tenta obter o tema do cookie (mais fiável para SSR)
+// Tema do cookie
 const themeCookie = Astro.cookies.get('theme')?.value || 'dark';
 ---
 
@@ -26,10 +30,12 @@ const themeCookie = Astro.cookies.get('theme')?.value || 'dark';
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
+
     {/* Pré-carregamento da imagem LCP se fornecida */}
     {lcpImage && (
       <link rel="preload" as="image" href={lcpImage} fetchpriority="high" />
     )}
+
     {/* Script crítico para evitar flash de cor errada ao carregar */}
     <script is:inline>
       (function() {
@@ -44,54 +50,53 @@ const themeCookie = Astro.cookies.get('theme')?.value || 'dark';
         }
       })();
     </script>
-    {/* Ícone do site (favicon) */}
+
+    {/* Favicon */}
     <link rel="icon" href={definicoes.favicon || "/favicon.ico"} />
+
     {/* Meta gerado automaticamente pelo Astro */}
     <meta name="generator" content={Astro.generator} />
-    {/* Pré-conexões e carregamento otimizado de fontes */}
+
+    {/* Pré-conexões */}
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href={import.meta.env.STRAPI_URL} crossorigin />
     <link rel="dns-prefetch" href={import.meta.env.STRAPI_URL} />
-    
-    {/* Pré-carregamento de fontes críticas para evitar layout shift e acelerar FCP */}
-    <link
-      rel="preload"
-      as="font"
-      type="font/woff2"
-      href="https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD7K83nnzPV8pF72baQfqL6A8BT6Y.woff2"
-      crossorigin
-    />
-    <link
-      rel="preload"
-      as="font"
-      type="font/woff2"
-      href="https://fonts.gstatic.com/s/dmsans/v15/rP2Hp2ywOT0kn-ITCNOTdrg.woff2"
-      crossorigin
-    />
 
+    {/* 
+      ── FONTE DINÂMICA (escolhida no Strapi) ──
+      Carrega Inter, Open Sans ou Poppins conforme a definição.
+      Usa display=swap para não bloquear o render.
+    */}
     <link
       rel="preload"
       as="style"
-      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500&display=optional"
+      href={fontUrl}
     />
     <link
-      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500&display=optional"
+      href={fontUrl}
       rel="stylesheet"
       media="print"
       onload="this.media='all'"
     />
     <noscript>
-      <link
-        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500&display=optional"
-        rel="stylesheet"
-      />
+      <link href={fontUrl} rel="stylesheet" />
     </noscript>
-    {/* Título da página, dinâmico por rota */}
+
+    {/* Aplica a fonte como variável CSS global — sobrepõe o valor do global.css */}
+    <style define:vars={{ fontCorpo: fontCssValue }}>
+      :root {
+        --fonte-corpo: var(--fontCorpo);
+      }
+      body {
+        font-family: var(--fontCorpo);
+      }
+    </style>
+
+    {/* Título da página */}
     <title>{titulo}</title>
   </head>
   <body>
-    {/* Slot onde cada página insere o seu conteúdo */}
     <slot />
 
     <CookieConsent />
@@ -149,7 +154,6 @@ const themeCookie = Astro.cookies.get('theme')?.value || 'dark';
         });
       }
 
-      // Deferir inicialização para não bloquear o LCP
       if (document.readyState === 'complete') {
         initCarousels();
       } else {

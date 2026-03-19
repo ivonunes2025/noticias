@@ -3,6 +3,7 @@ import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
 import CardNoticia from "../components/CardNoticia.astro";
 import SectionHeader from "../components/SectionHeader.astro";
+import HomepageBanner from "../components/HomepageBanner.astro";
 import { getImageUrl, checkAuth, fetchStrapi, normalize } from "../utils/strapi";
 import { SITE_CONFIG } from "../utils/config";
 
@@ -85,6 +86,8 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
 
 <Layout lcpImage={lcpImageUrl}>
   <Navbar isHome={true} />
+
+  <HomepageBanner />
 
   {/* ── Ticker Personalizado: Para Si (SSR) ── */}
   {hasPrefs && favoriteNews.length > 0 && (
@@ -228,7 +231,7 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
   :global(.ticker-bar) {
     display: flex;
     align-items: center;
-    background: transparent !important; /* Fundo removido */
+    background: transparent !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     color: var(--cor-principal);
@@ -236,7 +239,7 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
     font-weight: 600;
     overflow: hidden;
     height: 42px;
-    border-bottom: none !important; /* Linha removida */
+    border-bottom: none !important;
   }
 
   :global(.ticker-label) {
@@ -246,11 +249,11 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
     letter-spacing: 0.1em;
     font-size: 0.75rem;
     color: var(--cor-destaque);
-    border-right: none !important; /* Linha removida */
+    border-right: none !important;
     height: 100%;
     display: flex;
     align-items: center;
-    background: transparent !important; /* Fundo removido */
+    background: transparent !important;
   }
 
   :global(.ticker-track-wrapper) {
@@ -273,18 +276,18 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
     display: inline-flex;
     align-items: center;
     gap: 12px;
-    padding: 0 48px; /* Mais espaçado como solicitado */
+    padding: 0 48px;
     text-decoration: none !important;
     color: var(--cor-texto) !important;
     font-weight: 500;
     transition: all 0.2s ease;
     white-space: nowrap;
-    cursor: pointer; /* Agora é um link */
+    cursor: pointer;
   }
 
   :global(.ticker-item:hover) {
     color: var(--cor-destaque) !important;
-    background: transparent !important; /* Fundo removido no hover */
+    background: transparent !important;
   }
 
   :global(.ticker-dot) {
@@ -304,7 +307,6 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
     margin: 0 auto;
     padding: 48px 24px 0;
   }
-
 
   /* ── Últimas notícias (grid compacta) ── */
   .ultimas-section h2 {
@@ -380,7 +382,7 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
   .categoria-header h2 {
     border-bottom: none;
     padding-bottom: 0;
-    margin-bottom: 24px; /* Mantém consistência para evitar shifts */
+    margin-bottom: 24px;
   }
 
   .categoria-header h2::after {
@@ -409,7 +411,6 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
     border: none;
   }
 
-  /* Garantir que os cartões injetados via JS não tenham estilo de link padrão */
   :global(.personal-section .noticia-card) {
     text-decoration: none !important;
     color: inherit !important;
@@ -469,41 +470,39 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
   }
 
   .personal-header p {
-    display: none; /* Esconder a descrição para ficar igual às outras secções */
+    display: none;
   }
 
   /* ── Ticker Para Si ── */
   :global(.ticker-bar--personal) {
-    background: transparent !important; /* Sem fundo amarelo */
+    background: transparent !important;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    border-bottom: none !important; /* Linha removida */
+    border-bottom: none !important;
     margin-bottom: 0;
   }
 
   :global(.ticker-bar--personal .ticker-label) {
-    background: transparent !important; /* Fundo removido */
+    background: transparent !important;
     color: var(--cor-destaque);
     font-weight: 700;
-    border-right: none !important; /* Linha removida */
+    border-right: none !important;
   }
 
   :global(.ticker-bar--personal .ticker-item) {
-    color: var(--cor-principal) !important; /* Texto normal */
+    color: var(--cor-principal) !important;
   }
 
   :global(.ticker-bar--personal .ticker-item:hover) {
-    background: transparent !important; /* Sem fundo ao passar o rato */
-    color: var(--cor-destaque) !important; /* Letras amarelas no hover */
+    background: transparent !important;
+    color: var(--cor-destaque) !important;
   }
 
   :global(.ticker-bar--personal .ticker-track) {
-    animation-duration: 45s; /* Um pouco mais lento para leitura personalizada */
+    animation-duration: 45s;
   }
 
-  /* Ajuste na secção para quando o ticker está acima */
   :global(.ticker-bar--personal[style*="display: flex"]) + .personal-section {
     margin-top: 0 !important;
   }
-
 </style>
