@@ -1,5 +1,5 @@
 /* ── Ticker ── */
-:global(.ticker-bar) {
+.ticker-bar {
   display: flex;
   align-items: center;
   background: transparent !important;
@@ -13,7 +13,7 @@
   border-bottom: none !important;
 }
 
-:global(.ticker-label) {
+.ticker-label {
   flex-shrink: 0;
   padding: 0 16px;
   text-transform: uppercase;
@@ -27,23 +27,23 @@
   background: transparent !important;
 }
 
-:global(.ticker-track-wrapper) {
+.ticker-track-wrapper {
   flex: 1;
   overflow: hidden;
 }
 
-:global(.ticker-track) {
+.ticker-track {
   display: flex;
   gap: 0;
   animation: ticker-scroll 35s linear infinite;
   white-space: nowrap;
 }
 
-:global(.ticker-track:hover) {
+.ticker-track:hover {
   animation-play-state: paused;
 }
 
-:global(.ticker-item) {
+.ticker-track .ticker-item {
   display: inline-flex;
   align-items: center;
   gap: 12px;
@@ -54,14 +54,19 @@
   transition: all 0.2s ease;
   white-space: nowrap;
   cursor: pointer;
+  border: none !important;
+  outline: none !important;
 }
 
-:global(.ticker-item:hover) {
+.ticker-track .ticker-item:hover,
+.ticker-track .ticker-item:focus,
+.ticker-track .ticker-item:active,
+.ticker-track .ticker-item:visited {
   color: var(--cor-destaque) !important;
-  background: transparent !important;
+  text-decoration: none !important;
 }
 
-:global(.ticker-dot) {
+.ticker-dot {
   font-size: 0.5rem;
   color: var(--cor-destaque);
   opacity: 0.5;
@@ -245,7 +250,7 @@ section {
 }
 
 /* ── Ticker Para Si ── */
-:global(.ticker-bar--personal) {
+.ticker-bar--personal {
   background: transparent !important;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -253,26 +258,31 @@ section {
   margin-bottom: 0;
 }
 
-:global(.ticker-bar--personal .ticker-label) {
+.ticker-bar--personal .ticker-label {
   background: transparent !important;
   color: var(--cor-destaque);
   font-weight: 700;
   border-right: none !important;
 }
 
-:global(.ticker-bar--personal .ticker-item) {
+.ticker-bar--personal .ticker-track .ticker-item {
   color: var(--cor-principal) !important;
+  text-decoration: none !important;
 }
 
-:global(.ticker-bar--personal .ticker-item:hover) {
+.ticker-bar--personal .ticker-track .ticker-item:hover,
+.ticker-bar--personal .ticker-track .ticker-item:focus,
+.ticker-bar--personal .ticker-track .ticker-item:active,
+.ticker-bar--personal .ticker-track .ticker-item:visited {
   background: transparent !important;
   color: var(--cor-destaque) !important;
+  text-decoration: none !important;
 }
 
-:global(.ticker-bar--personal .ticker-track) {
+.ticker-bar--personal .ticker-track {
   animation-duration: 45s;
 }
 
-:global(.ticker-bar--personal[style*="display: flex"]) + .personal-section {
+.ticker-bar--personal[style*="display: flex"] + .personal-section {
   margin-top: 0 !important;
 }

@@ -79,6 +79,16 @@ if (isAuthenticated && prefsCookie && prefsCookie.value) {
   }
 }
 
+// Consolidar notícias para o ticker (Prioridade para as favoritas se existirem)
+const finalTickerNews = hasPrefs && favoriteNews.length > 0 
+  ? [...favoriteNews.slice(0, 5), ...tickerNews.slice(0, 3)]
+  : tickerNews;
+
+// Título do Ticker
+const tickerLabel = hasPrefs && favoriteNews.length > 0 
+  ? SITE_CONFIG.ui.home.paraSi 
+  : SITE_CONFIG.ui.home.ultimas;
+
 // Determinar a imagem LCP para pré-carregamento
 const lcpImageUrl = hasPrefs && favoriteNews.length > 0 
   ? getImageUrl(favoriteNews[0].capa ?? favoriteNews[0].imagem)
@@ -107,6 +117,23 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
     </div>
   )}
 
+  {/* ── Breaking News Ticker ── */}
+  {tickerNews.length > 0 && (
+    <div class="ticker-bar">
+      <span class="ticker-label">{SITE_CONFIG.ui.home.ultimas}</span>
+      <div class="ticker-track-wrapper">
+        <div class="ticker-track">
+          {[...tickerNews, ...tickerNews].map((n: any) => (
+            <a href={`/noticias/${n.slug}`} class="ticker-item">
+              <span class="ticker-dot">●</span>
+              {n.titulo}
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  )}
+
   {/* ── Secção Personalizada: Para Si (SSR) ── */}
   {hasPrefs && favoriteNews.length > 0 && (
     <section id="para-si" class="personal-section">
@@ -123,23 +150,6 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
         </div>
       </div>
     </section>
-  )}
-
-  {/* ── Breaking News Ticker ── */}
-  {tickerNews.length > 0 && (
-    <div class="ticker-bar">
-      <span class="ticker-label">{SITE_CONFIG.ui.home.ultimas}</span>
-      <div class="ticker-track-wrapper">
-        <div class="ticker-track">
-          {[...tickerNews, ...tickerNews].map((n: any) => (
-            <a href={`/noticias/${n.slug}`} class="ticker-item">
-              <span class="ticker-dot">●</span>
-              {n.titulo}
-            </a>
-          ))}
-        </div>
-      </div>
-    </div>
   )}
 
   {/* ── Em Destaque ── */}
