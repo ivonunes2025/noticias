@@ -4,6 +4,14 @@
   gap: 12px;
 }
 
+.autor-link {
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+.autor-link:hover {
+  color: var(--cor-destaque);
+}
+
 .has-border {
   padding-right: 20px;
   border-right: 1px solid var(--cor-borda);

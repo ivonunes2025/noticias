@@ -1,21 +1,4 @@
 ---
-/**
- * HomepageBanner.astro
- * 
- * Slideshow do banner da homepage gerido pelo cliente no Strapi.
- * 
- * Comportamento:
- *  - 1 imagem  → mostra só o banner, sem setas nem bolinhas
- *  - 2-3 imagens → slideshow automático com setas e bolinhas de paginação
- * 
- * Strapi: Collection Type "homepage-banner" com campos:
- *   - imagem_1 (Media, obrigatório)
- *   - imagem_2 (Media, opcional)
- *   - imagem_3 (Media, opcional)
- *   - link_1, link_2, link_3 (Text, opcional) – destino ao clicar no banner
- *   - ativo (Boolean) – se false, o banner não aparece
- */
-
 import { getImageUrl } from "../utils/strapi";
 import "../styles/homepage-banner.css";
 
@@ -25,14 +8,17 @@ interface BannerSlide {
   url: string;
   link: string | null;
   alt: string;
+  titulo: string | null;
+  subtitulo: string | null;
+  btnTexto: string | null;
+  btnLink: string | null;
 }
 
 let slides: BannerSlide[] = [];
 
 try {
-  const res = await fetch(
-    `${STRAPI}/api/homepage-banners?populate[imagem_1][fields][0]=url&populate[imagem_1][fields][1]=alternativeText&populate[imagem_2][fields][0]=url&populate[imagem_2][fields][1]=alternativeText&populate[imagem_3][fields][0]=url&populate[imagem_3][fields][1]=alternativeText&pagination[pageSize]=1&sort=createdAt:desc`
-  );
+  const url = `${STRAPI}/api/homepage-banners?populate=*&pagination[pageSize]=1&sort=createdAt:desc`;
+  const res = await fetch(url);
 
   if (res.ok) {
     const json = await res.json();
@@ -41,151 +27,143 @@ try {
     if (raw) {
       const data = raw?.attributes ?? raw;
 
-      // Só mostra se ativo !== false (campo opcional; se não existir, mostra por defeito)
       if (data.ativo !== false) {
         const imagens = [
-          { media: data.imagem_1, link: data.link_1 ?? null },
-          { media: data.imagem_2, link: data.link_2 ?? null },
-          { media: data.imagem_3, link: data.link_3 ?? null },
+          { n: 1, media: data.imagem_1 },
+          { n: 2, media: data.imagem_2 },
+          { n: 3, media: data.imagem_3 },
         ];
 
-        for (const { media, link } of imagens) {
-          const url = getImageUrl(media);
-          if (url) {
-            const alt =
-              media?.alternativeText ??
-              media?.attributes?.alternativeText ??
-              media?.data?.attributes?.alternativeText ??
-              "Banner";
-            slides.push({ url, link, alt });
-          }
+        for (const { n, media } of imagens) {
+          const imgUrl = getImageUrl(media);
+          if (!imgUrl) continue;
+
+          const alt =
+            media?.alternativeText ??
+            media?.attributes?.alternativeText ??
+            media?.data?.attributes?.alternativeText ??
+            `Banner ${n}`;
+
+          slides.push({
+            url:       imgUrl,
+            alt,
+            link:      (data[`link_${n}`]      as string) || null,
+            titulo:    (data[`titulo_${n}`]    as string) || null,
+            subtitulo: (data[`subtitulo_${n}`] as string) || null,
+            btnTexto:  (data[`bnt_texto_${n}`] as string)
+                    || (data[`btn_texto_${n}`] as string)
+                    || null,
+            btnLink:   (data[`btn_link_${n}`]  as string)
+                    || (data[`link_${n}`]       as string)
+                    || null,
+          });
         }
       }
     }
   }
 } catch (e) {
-  console.warn("[HomepageBanner] Não foi possível carregar o banner:", e);
+  console.warn("[HomepageBanner] Erro:", e);
 }
 
 const hasMultiple = slides.length > 1;
-const hasBanner = slides.length > 0;
+const hasBanner   = slides.length > 0;
 ---
 
 {hasBanner && (
-  <div
-    id="homepage-banner"
-    class={`banner-wrapper ${hasMultiple ? "banner--slideshow" : "banner--single"}`}
-    aria-label="Banner principal"
-    role="region"
-  >
-    <!-- SLIDES -->
-    <div class="banner-track" id="banner-track">
-      {slides.map((slide, i) => (
-        <div
-          class={`banner-slide ${i === 0 ? "is-active" : ""}`}
-          data-index={i}
-          aria-hidden={i !== 0}
-        >
-          {slide.link ? (
-            <a href={slide.link} class="banner-link" tabindex={i === 0 ? 0 : -1}>
-              <img
-                src={slide.url}
-                alt={slide.alt}
-                class="banner-img"
+  <div class="banner-outer">
+    <div
+      id="homepage-banner"
+      class={`banner-wrapper ${hasMultiple ? "banner--slideshow" : "banner--single"}`}
+      aria-label="Banner principal"
+      role="region"
+    >
+      <div class="banner-track" id="banner-track">
+        {slides.map((slide, i) => (
+          <div
+            class={`banner-slide ${i === 0 ? "is-active" : ""}`}
+            data-index={i}
+            aria-hidden={i !== 0}
+          >
+            <!-- Imagem -->
+            {slide.link ? (
+              <a href={slide.link} class="banner-link" tabindex={i === 0 ? 0 : -1}>
+                <img src={slide.url} alt={slide.alt} class="banner-img"
+                  loading={i === 0 ? "eager" : "lazy"}
+                  fetchpriority={i === 0 ? "high" : "auto"} />
+              </a>
+            ) : (
+              <img src={slide.url} alt={slide.alt} class="banner-img"
                 loading={i === 0 ? "eager" : "lazy"}
-                fetchpriority={i === 0 ? "high" : "auto"}
-              />
-            </a>
-          ) : (
-            <img
-              src={slide.url}
-              alt={slide.alt}
-              class="banner-img"
-              loading={i === 0 ? "eager" : "lazy"}
-              fetchpriority={i === 0 ? "high" : "auto"}
-            />
-          )}
-        </div>
-      ))}
+                fetchpriority={i === 0 ? "high" : "auto"} />
+            )}
+
+            <!-- Overlay: aparece sempre que titulo OU botão existam -->
+            {(slide.titulo || slide.btnTexto) && (
+              <div class="banner-content">
+                {slide.titulo    && <h2 class="banner-titulo">{slide.titulo}</h2>}
+                {slide.subtitulo && <p  class="banner-subtitulo">{slide.subtitulo}</p>}
+                {(slide.btnTexto && slide.btnLink) && (
+                  <a href={slide.btnLink} class="banner-btn" tabindex={i === 0 ? 0 : -1}>
+                    {slide.btnTexto}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2.5"
+                      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <line x1="5" y1="12" x2="19" y2="12"/>
+                      <polyline points="12 5 19 12 12 19"/>
+                    </svg>
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {hasMultiple && (
+        <>
+          <button class="banner-arrow banner-arrow--prev" id="banner-prev" aria-label="Slide anterior" type="button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <button class="banner-arrow banner-arrow--next" id="banner-next" aria-label="Próximo slide" type="button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+          <div class="banner-dots" role="tablist" aria-label="Selecionar slide">
+            {slides.map((_, i) => (
+              <button class={`banner-dot ${i === 0 ? "is-active" : ""}`} data-dot={i}
+                role="tab" aria-label={`Slide ${i + 1}`} aria-selected={i === 0} type="button" />
+            ))}
+          </div>
+        </>
+      )}
     </div>
-
-    <!-- SETAS (só se múltiplos slides) -->
-    {hasMultiple && (
-      <>
-        <button
-          class="banner-arrow banner-arrow--prev"
-          id="banner-prev"
-          aria-label="Slide anterior"
-          type="button"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-
-        <button
-          class="banner-arrow banner-arrow--next"
-          id="banner-next"
-          aria-label="Próximo slide"
-          type="button"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </button>
-
-        <!-- BOLINHAS DE PAGINAÇÃO -->
-        <div class="banner-dots" role="tablist" aria-label="Selecionar slide">
-          {slides.map((_, i) => (
-            <button
-              class={`banner-dot ${i === 0 ? "is-active" : ""}`}
-              data-dot={i}
-              role="tab"
-              aria-label={`Slide ${i + 1}`}
-              aria-selected={i === 0}
-              type="button"
-            />
-          ))}
-        </div>
-      </>
-    )}
   </div>
 )}
 
 <script>
-  /**
-   * Lógica do slideshow do banner.
-   * Auto-play a cada 5 segundos, pausa ao passar o rato.
-   * Suporte a swipe em mobile.
-   */
   function initBanner() {
     const wrapper = document.getElementById("homepage-banner");
     if (!wrapper) return;
 
     const slides = Array.from(wrapper.querySelectorAll<HTMLElement>(".banner-slide"));
-    if (slides.length <= 1) return; // Só 1 imagem → nada a fazer
+    if (slides.length <= 1) return;
 
-    const dots = Array.from(wrapper.querySelectorAll<HTMLElement>(".banner-dot"));
+    const dots    = Array.from(wrapper.querySelectorAll<HTMLElement>(".banner-dot"));
     const prevBtn = document.getElementById("banner-prev");
     const nextBtn = document.getElementById("banner-next");
 
     let current = 0;
-    let autoPlayTimer: ReturnType<typeof setInterval> | null = null;
-    const INTERVAL = 5000; // 5 segundos
+    let timer: ReturnType<typeof setInterval> | null = null;
 
-    // ── Ir para um slide específico ──
     function goTo(index: number) {
       slides[current].classList.remove("is-active");
       slides[current].setAttribute("aria-hidden", "true");
       dots[current]?.classList.remove("is-active");
       dots[current]?.setAttribute("aria-selected", "false");
-
-      // Link do slide anterior fica inacessível por teclado
-      slides[current].querySelector<HTMLAnchorElement>("a")?.setAttribute("tabindex", "-1");
+      slides[current].querySelectorAll<HTMLAnchorElement>("a").forEach(a => a.setAttribute("tabindex", "-1"));
 
       current = (index + slides.length) % slides.length;
 
@@ -193,70 +171,36 @@ const hasBanner = slides.length > 0;
       slides[current].setAttribute("aria-hidden", "false");
       dots[current]?.classList.add("is-active");
       dots[current]?.setAttribute("aria-selected", "true");
-
-      // Link do slide ativo fica acessível por teclado
-      slides[current].querySelector<HTMLAnchorElement>("a")?.setAttribute("tabindex", "0");
+      slides[current].querySelectorAll<HTMLAnchorElement>("a").forEach(a => a.setAttribute("tabindex", "0"));
     }
 
-    // ── Auto-play ──
-    function startAutoPlay() {
-      stopAutoPlay();
-      autoPlayTimer = setInterval(() => goTo(current + 1), INTERVAL);
-    }
+    const start = () => { stop(); timer = setInterval(() => goTo(current + 1), 5000); };
+    const stop  = () => { if (timer) { clearInterval(timer); timer = null; } };
 
-    function stopAutoPlay() {
-      if (autoPlayTimer) {
-        clearInterval(autoPlayTimer);
-        autoPlayTimer = null;
-      }
-    }
+    prevBtn?.addEventListener("click", () => { goTo(current - 1); start(); });
+    nextBtn?.addEventListener("click", () => { goTo(current + 1); start(); });
+    dots.forEach((d, i) => d.addEventListener("click", () => { goTo(i); start(); }));
 
-    // ── Eventos dos botões ──
-    prevBtn?.addEventListener("click", () => { goTo(current - 1); startAutoPlay(); });
-    nextBtn?.addEventListener("click", () => { goTo(current + 1); startAutoPlay(); });
+    wrapper.addEventListener("mouseenter", stop);
+    wrapper.addEventListener("mouseleave", start);
 
-    // ── Eventos das bolinhas ──
-    dots.forEach((dot, i) => {
-      dot.addEventListener("click", () => { goTo(i); startAutoPlay(); });
-    });
-
-    // ── Pausa ao hover ──
-    wrapper.addEventListener("mouseenter", stopAutoPlay);
-    wrapper.addEventListener("mouseleave", startAutoPlay);
-
-    // ── Suporte a swipe em mobile ──
-    let touchStartX = 0;
-    let touchEndX = 0;
-
-    wrapper.addEventListener("touchstart", (e) => {
-      touchStartX = e.changedTouches[0].screenX;
+    let tx = 0;
+    wrapper.addEventListener("touchstart", (e) => { tx = e.changedTouches[0].screenX; }, { passive: true });
+    wrapper.addEventListener("touchend",   (e) => {
+      const d = tx - e.changedTouches[0].screenX;
+      if (Math.abs(d) > 50) { goTo(d > 0 ? current + 1 : current - 1); start(); }
     }, { passive: true });
 
-    wrapper.addEventListener("touchend", (e) => {
-      touchEndX = e.changedTouches[0].screenX;
-      const diff = touchStartX - touchEndX;
-      if (Math.abs(diff) > 50) {
-        goTo(diff > 0 ? current + 1 : current - 1);
-        startAutoPlay();
-      }
-    }, { passive: true });
-
-    // ── Teclado (acessibilidade) ──
     wrapper.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowLeft") { goTo(current - 1); startAutoPlay(); }
-      if (e.key === "ArrowRight") { goTo(current + 1); startAutoPlay(); }
+      if (e.key === "ArrowLeft")  { goTo(current - 1); start(); }
+      if (e.key === "ArrowRight") { goTo(current + 1); start(); }
     });
 
-    // ── Pausa quando o utilizador sai da aba ──
-    document.addEventListener("visibilitychange", () => {
-      document.hidden ? stopAutoPlay() : startAutoPlay();
-    });
+    document.addEventListener("visibilitychange", () => document.hidden ? stop() : start());
 
-    // Inicia o auto-play
-    startAutoPlay();
+    start();
   }
 
-  // Corre na carga inicial e após navegações do Astro
   initBanner();
   document.addEventListener("astro:after-swap", initBanner);
 </script>

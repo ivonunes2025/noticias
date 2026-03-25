@@ -1,44 +1,33 @@
 ---
-// Componente Autor: Exibe as informações do autor de uma notícia (foto, nome, cargo).
-// É desenhado para ser flexível, com variantes de tamanho ("small", "large").
-
-// Importa helpers do Strapi para normalizar dados e obter URLs de imagens.
 import { getImageUrl, normalize } from "../utils/strapi";
-// Importa os estilos CSS associados a este componente.
 import "../styles/autor.css";
 
-// Define as propriedades que o componente pode receber, com tipos específicos.
 interface Props {
   autor: {
     nome: string;
-    foto?: any; // A foto pode ter uma estrutura complexa do Strapi.
+    foto?: any;
+    slug?: string;
+    id?: number | string;
   };
-  variant?: "small" | "large"; // O tamanho do componente (padrão: 'small').
-  showBorder?: boolean;    // Se deve mostrar uma borda à direita (padrão: true).
+  variant?: "small" | "large";
+  showBorder?: boolean;
 }
 
-// Extrai as propriedades, definindo valores padrão para `variant` e `showBorder`.
 const { autor: rawAutor, variant = "small", showBorder = true } = Astro.props;
 
-// Se não for fornecido um autor, o componente não renderiza nada para evitar erros.
 if (!rawAutor) return null;
 
-// Normaliza o objeto do autor para remover a complexidade da estrutura do Strapi (`attributes`, `data`).
+// Normaliza o objeto do autor
 const autor = normalize(rawAutor);
-// Obtém a URL da foto do autor de forma segura, tratando casos onde a foto pode não existir.
 const fotoUrl = getImageUrl(autor.foto);
+
+// Usa o slug para o link
+const autorLink = autor.slug ? `/autores/${autor.slug}` : null;
 ---
 
-<!-- 
-  O contêiner principal. 
-  As classes dinâmicas `autor-info--{variant}` e `has-border` aplicam os estilos corretos
-  com base nas propriedades recebidas.
--->
 <div class={`autor-info autor-info--${variant} ${showBorder ? 'has-border' : ''}`}>
-  <!-- O contêiner da foto do autor. -->
   <div class="autor-foto-wrapper">
     {fotoUrl ? (
-      // Se existir uma URL para a foto, renderiza a imagem com lazy loading.
       <img 
         src={fotoUrl} 
         alt={autor.nome} 
@@ -46,7 +35,6 @@ const fotoUrl = getImageUrl(autor.foto);
         loading="lazy"
       />
     ) : (
-      // Caso contrário, mostra um ícone de placeholder.
       <div class="autor-foto-placeholder">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
@@ -54,10 +42,13 @@ const fotoUrl = getImageUrl(autor.foto);
       </div>
     )}
   </div>
-  <!-- O contêiner para o nome e cargo do autor. -->
+
   <div class="autor-detalhes">
-    <span class="autor-nome">{autor.nome}</span>
-    <!-- O cargo só é renderizado se a variante for 'large' e o cargo existir. -->
+    {autorLink ? (
+      <a href={autorLink} class="autor-nome autor-link">{autor.nome}</a>
+    ) : (
+      <span class="autor-nome">{autor.nome}</span>
+    )}
     {variant === "large" && autor.cargo && (
       <span class="autor-cargo">{autor.cargo}</span>
     )}

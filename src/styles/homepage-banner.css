@@ -1,7 +1,13 @@
 /**
  * Estilos para o componente HomepageBanner.astro.
- * Gerencia o layout do banner principal, slideshow, setas e indicadores.
  */
+
+/* ── Wrapper exterior — cria as margens laterais ── */
+.banner-outer {
+  width: 100%;
+  padding: 20px clamp(16px, 4vw, 48px) 0;
+  box-sizing: border-box;
+}
 
 /* ── Wrapper Principal do Banner ── */
 .banner-wrapper {
@@ -9,29 +15,39 @@
   width: 100%;
   overflow: hidden;
   background: var(--cor-fundo-card);
+  border-radius: 16px;
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.18);
 }
 
-/* Mantém um rácio de aspecto fixo (21:9 em desktop) para evitar saltos de layout */
+/* Rácio 16:7 em desktop */
 .banner-wrapper::before {
   content: "";
   display: block;
-  padding-top: 28%;  /* Rácio aproximado de 21:6 */
+  padding-top: 43.75%;
 }
 
-/* Ajusta o rácio para 16:9 em dispositivos móveis */
+/* Rácio 4:3 em mobile */
 @media (max-width: 768px) {
+  .banner-outer {
+    padding: 12px 12px 0;
+  }
+
+  .banner-wrapper {
+    border-radius: 10px;
+  }
+
   .banner-wrapper::before {
-    padding-top: 56.25%; /* Rácio 16:9 */
+    padding-top: 75%;
   }
 }
 
-/* ── Contentor dos Slides (Track) ── */
+/* ── Track ── */
 .banner-track {
   position: absolute;
   inset: 0;
 }
 
-/* ── Estilos de cada Slide Individual ── */
+/* ── Slide ── */
 .banner-slide {
   position: absolute;
   inset: 0;
@@ -40,7 +56,21 @@
   pointer-events: none;
 }
 
-/* Estado ativo do slide (visível) */
+/* Gradiente para legibilidade */
+.banner-slide::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.65) 0%,
+    rgba(0, 0, 0, 0.3)  50%,
+    transparent         100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
 .banner-slide.is-active {
   opacity: 1;
   pointer-events: auto;
@@ -52,38 +82,125 @@
   height: 100%;
 }
 
-/* Imagem de fundo do banner */
 .banner-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center;
-  border-radius: 0;
-  box-shadow: none;
   display: block;
 }
 
-/* ── Overlay de Gradiente ── */
-/* Adiciona um escurecimento suave no fundo para melhorar o contraste dos elementos UI */
-.banner--slideshow .banner-track::after {
-  content: "";
+/* ── Overlay de Conteúdo ── */
+.banner-content {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to bottom,
-    transparent 55%,
-    rgba(0, 0, 0, 0.35) 100%
-  );
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding: clamp(32px, 8vw, 80px) clamp(24px, 8vw, 80px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 16px;
+  height: 100%;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s ease 0.2s, transform 0.5s ease 0.2s;
   pointer-events: none;
-  z-index: 1;
 }
 
-/* ── Botões de Navegação (Setas) ── */
+.banner-slide.is-active .banner-content {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* Título */
+.banner-titulo {
+  font-family: var(--fonte-titulo);
+  font-size: clamp(1.8rem, 5vw, 3.5rem);
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.1;
+  margin: 0;
+  text-shadow: 0 2px 15px rgba(0, 0, 0, 0.6);
+  max-width: 800px;
+  border: none !important;
+  padding: 0 !important;
+}
+
+.banner-titulo::after {
+  display: none !important;
+}
+
+/* Subtítulo */
+.banner-subtitulo {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  color: rgba(255, 255, 255, 0.95);
+  margin: 0;
+  max-width: 600px;
+  line-height: 1.5;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+  font-weight: 400;
+}
+
+/* Botão CTA */
+.banner-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 14px 32px;
+  background: var(--cor-destaque, #c8963e);
+  color: #000;
+  font-weight: 700;
+  font-size: 1rem;
+  border-radius: 50px;
+  text-decoration: none !important;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+}
+
+.banner-btn:hover {
+  transform: translateY(-3px) scale(1.02);
+  filter: brightness(1.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.banner-btn svg {
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
+}
+
+.banner-btn:hover svg {
+  transform: translateX(4px);
+}
+
+[data-theme="dark"] .banner-btn {
+  background: #ffffff;
+  color: #000000;
+}
+
+@media (max-width: 480px) {
+  .banner-content {
+    gap: 12px;
+    padding: 32px 20px;
+  }
+
+  .banner-btn {
+    padding: 12px 24px;
+    font-size: 0.9rem;
+  }
+}
+
+/* ── Setas de Navegação ── */
 .banner-arrow {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 10;
+  z-index: 20;
   background: rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -96,7 +213,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition: all 0.2s ease;
   padding: 0;
 }
 
@@ -109,7 +226,6 @@
 .banner-arrow--prev { left: 16px; }
 .banner-arrow--next { right: 16px; }
 
-/* Redução das setas em mobile */
 @media (max-width: 480px) {
   .banner-arrow {
     width: 38px;
@@ -121,16 +237,16 @@
   }
 }
 
-/* ── Indicadores de Paginação (Bolinhas) ── */
+/* ── Bolinhas de Paginação ── */
 .banner-dots {
   position: absolute;
-  bottom: 16px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 10;
+  z-index: 20;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .banner-dot {
@@ -141,14 +257,13 @@
   border: 1.5px solid rgba(255, 255, 255, 0.6);
   cursor: pointer;
   padding: 0;
-  transition: background 0.25s ease, transform 0.25s ease, width 0.25s ease;
+  transition: all 0.3s ease;
 }
 
-/* Estilo da bolinha correspondente ao slide atual */
 .banner-dot.is-active {
   background: var(--cor-destaque);
   border-color: var(--cor-destaque);
-  width: 24px;
+  width: 28px;
   border-radius: 5px;
   transform: scale(1.1);
 }
@@ -156,13 +271,4 @@
 .banner-dot:hover:not(.is-active) {
   background: rgba(255, 255, 255, 0.75);
   transform: scale(1.15);
-}
-
-/* Ajustes mobile para as bolinhas */
-@media (max-width: 480px) {
-  .banner-dots {
-    bottom: 10px;
-  }
-  .banner-dot { width: 8px; height: 8px; }
-  .banner-dot.is-active { width: 20px; }
 }
