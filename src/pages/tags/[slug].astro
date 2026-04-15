@@ -1,0 +1,165 @@
+---
+// src/pages/tags/[slug].astro
+// Página que lista todas as notícias associadas a uma tag específica.
+export const prerender = false;
+
+import Layout from "../../layouts/Layout.astro";
+import Navbar from "../../components/Navbar.astro";
+import CardNoticia from "../../components/CardNoticia.astro";
+import Pagination from "../../components/Pagination.astro";
+import { formatTituloPt, fetchStrapi, normalize } from "../../utils/strapi";
+
+const { slug } = Astro.params;
+const slugEncoded = encodeURIComponent(slug ?? "");
+
+// Paginação
+const page = Number(Astro.url.searchParams.get("page") || 1);
+const pageSize = 9; // Número de notícias por página
+
+// Busca a tag e as notícias associadas
+const [tagRes, noticiasRes] = await Promise.all([
+  fetchStrapi(`tags`, {
+    'filters[slug][$eq]': slug ?? ""
+  }),
+  fetchStrapi(`noticias`, {
+    'filters[tags][slug][$eq]': slug ?? "",
+    'populate[capa][fields][0]': 'url',
+    'populate[categorias][fields][0]': 'slug',
+    'populate[categorias][fields][1]': 'nome',
+    'pagination[page]': page,
+    'pagination[pageSize]': pageSize,
+    'sort': 'publishedAt:desc'
+  }),
+]);
+
+const tagData = normalize(tagRes?.[0]);
+const nomeTagRaw = tagData?.nome ?? slug ?? "";
+const nomeTag = formatTituloPt(nomeTagRaw);
+
+const news = normalize(noticiasRes);
+const meta = noticiasRes?.meta?.pagination || { page: 1, pageSize: 9, pageCount: 1, total: 0 };
+---
+
+<Layout titulo={`Tag: #${nomeTag}`}>
+  <Navbar isHome={false} />
+
+  <section class="tag-detalhe">
+    <a href="/" class="voltar">← Voltar</a>
+    <div class="tag-header">
+      <span class="tag-prefix">Notícias com a tag</span>
+      <h1>#{nomeTag}</h1>
+    </div>
+
+    {
+      news.length > 0 ? (
+        <>
+          <div class="noticias-grid">
+            {news.map((n: any) => (
+              <CardNoticia noticia={n} />
+            ))}
+          </div>
+
+          <Pagination 
+            currentPage={meta.page} 
+            totalPages={meta.pageCount} 
+            baseUrl={`/tags/${slug}`}
+          />
+        </>
+      ) : (
+        <div class="sem-noticias">
+          <p>Não foram encontradas notícias com esta tag.</p>
+          <a href="/" class="btn-home">Voltar para a Página Inicial</a>
+        </div>
+      )
+    }
+  </section>
+</Layout>
+
+<style>
+  .tag-detalhe {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 60px 24px;
+  }
+
+  .voltar {
+    display: inline-block;
+    color: var(--cor-principal);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 32px;
+    transition: opacity 0.2s ease;
+  }
+
+  .voltar:hover {
+    opacity: 0.7;
+  }
+
+  .tag-header {
+    margin-bottom: 48px;
+  }
+
+  .tag-prefix {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--cor-destaque);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .tag-header h1 {
+    font-family: var(--fonte-titulo);
+    font-size: clamp(2rem, 5vw, 3rem);
+    color: var(--cor-principal);
+    margin: 0;
+  }
+
+  .noticias-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 32px;
+    margin-bottom: 60px;
+  }
+
+  .sem-noticias {
+    text-align: center;
+    padding: 80px 24px;
+    background: var(--cor-fundo-card);
+    border-radius: var(--raio);
+    border: 1px dashed var(--cor-borda);
+  }
+
+  .sem-noticias p {
+    font-size: 1.1rem;
+    color: var(--cor-texto-suave);
+    margin-bottom: 24px;
+  }
+
+  .btn-home {
+    display: inline-block;
+    padding: 12px 24px;
+    background: var(--cor-destaque);
+    color: var(--cor-fundo);
+    text-decoration: none;
+    border-radius: 50px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+
+  .btn-home:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(200, 150, 62, 0.3);
+  }
+
+  @media (max-width: 768px) {
+    .tag-detalhe {
+      padding: 40px 20px;
+    }
+    .noticias-grid {
+      gap: 24px;
+    }
+  }
+</style>

@@ -12,6 +12,7 @@ import PrivateOverlayFull from "../../components/PrivateOverlayFull.astro";
 import ShareMenu from "../../components/ShareMenu.astro";
 import ReadingProgressBar from "../../components/ReadingProgressBar.astro";
 import AudioReader from "../../components/AudioReader.astro";
+import TagsList from "../../components/TagsList.astro";
 
 // URL base do Strapi e slug recebido pela rota
 const STRAPI_URL = import.meta.env.STRAPI_URL?.replace(/\/$/, '');
@@ -24,7 +25,15 @@ const isAuthenticated = checkAuth(Astro.cookies);
 let res: any = { data: [] };
 try {
   // Tenta buscar por slug primeiro (que é o padrão)
-  const query = `filters[slug][$eq]=${encodeURIComponent(id || '')}&populate[capa]=*&populate[categorias]=*&populate[autor][populate][foto]=*&populate[autor][populate][0]=*`;
+  const query = `filters[slug][$eq]=${encodeURIComponent(id || '')}
+    &populate[capa]=*
+    &populate[categorias]=*
+    &populate[autor][populate][foto]=*
+    &populate[autor][fields][0]=nome
+    &populate[autor][fields][1]=slug
+    &populate[autor][fields][2]=cargo
+    &populate[tags][fields][0]=nome
+    &populate[tags][fields][1]=slug`;
   let url = `${STRAPI_URL}/api/noticias?${query}`;
   
   let response = await fetch(url);
@@ -34,7 +43,7 @@ try {
 
   // Se não encontrar por slug e o ID parecer um número, tenta buscar por ID direto
   if ((!res.data || res.data.length === 0) && id && /^\d+$/.test(id)) {
-    url = `${STRAPI_URL}/api/noticias/${id}?populate[capa]=*&populate[categorias]=*&populate[autor][populate][foto]=*&populate[autor][populate][0]=*`;
+    url = `${STRAPI_URL}/api/noticias/${id}?populate[capa]=*&populate[categorias]=*&populate[autor][populate][foto]=*&populate[tags][fields][0]=nome&populate[tags][fields][1]=slug`;
     response = await fetch(url);
     if (response.ok) {
       const singleRes = await response.json();
@@ -60,6 +69,7 @@ try {
 // Normaliza o objeto de notícia usando o utilitário global
 const rawNoticia = normalize(res.data?.[0]);
 const displayData = getNoticiaDisplayData(rawNoticia);
+const tags = normalize(rawNoticia?.tags ?? []);
 
 // 3. BLOQUEIO CRÍTICO: Se for privada e não houver login
 const isPrivate = displayData?.isPrivada ?? false;
@@ -110,6 +120,7 @@ if (displayData) {
       
       {/* Título AGORA EM CIMA da notícia */}
       <h1>{displayData.titulo}</h1>
+      <TagsList tags={tags} />
 
       {displayData.autor && (
         <div class="meta-header" style="margin-bottom: 24px;">
@@ -202,6 +213,7 @@ if (displayData) {
         </div>
 
         <h1>{displayData.titulo}</h1>
+        <TagsList tags={tags} />
         <div class="detalhe-texto" set:html={displayData.conteudoHtml} />
 
         {displayData.autor && (

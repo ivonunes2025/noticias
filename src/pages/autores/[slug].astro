@@ -1,61 +1,80 @@
 ---
+// src/pages/autores/[slug].astro
+// Página de perfil de um autor que lista todos os seus artigos.
 export const prerender = false;
 
 import Layout from "../../layouts/Layout.astro";
 import Navbar from "../../components/Navbar.astro";
 import CardNoticia from "../../components/CardNoticia.astro";
 import Pagination from "../../components/Pagination.astro";
-import { normalize, getImageUrl } from "../../utils/strapi";
+import { normalize, getImageUrl, fetchStrapi, formatTituloPt } from "../../utils/strapi";
 
-const STRAPI = import.meta.env.STRAPI_URL?.replace(/\/$/, "");
 const { slug } = Astro.params;
-
 const page = Number(Astro.url.searchParams.get("page") || 1);
 const pageSize = 9;
 
-// 1. Busca o autor pelo slug
-let autor: any = null;
-let fotoUrl: string | null = null;
+// 1. Busca o autor pelo slug no Strapi
+// Tenta primeiro 'autores' e depois 'autor' como fallback
+console.log(`[AutorPage] Buscando autor com slug: ${slug}`);
 
-try {
-  const res = await fetch(
-    `${STRAPI}/api/autores?filters[slug][$eq]=${encodeURIComponent(slug ?? "")}&populate[foto][fields][0]=url`
-  );
-  if (res.ok) {
-    const json = await res.json();
-    const raw = json?.data?.[0];
-    if (raw) {
-      autor = normalize(raw);
-      fotoUrl = getImageUrl(autor.foto);
-    }
-  }
-} catch (e) {}
+let autorRes = await fetchStrapi('autores', {
+  'filters[slug][$eq]': slug ?? "",
+  'populate': '*'
+});
 
-if (!autor) return Astro.redirect("/404");
-
-// 2. Busca as notícias deste autor com paginação
-let noticias: any[] = [];
-let meta = { page: 1, pageSize, pageCount: 1, total: 0 };
-
-try {
-  const params = new URLSearchParams({
-    "filters[autor][slug][$eq]": slug ?? "",
-    "populate[capa][fields][0]": "url",
-    "populate[categorias][fields][0]": "slug",
-    "populate[categorias][fields][1]": "nome",
-    "populate[autor][fields][0]": "nome",
-    "pagination[page]": String(page),
-    "pagination[pageSize]": String(pageSize),
-    "sort": "publishedAt:desc",
+if (!autorRes || !autorRes.data || autorRes.data.length === 0) {
+  console.log(`[AutorPage] Não encontrado em 'autores', tentando 'autor'...`);
+  autorRes = await fetchStrapi('autor', {
+    'filters[slug][$eq]': slug ?? "",
+    'populate': '*'
   });
+}
 
-  const res = await fetch(`${STRAPI}/api/noticias?${params.toString()}`);
-  if (res.ok) {
-    const json = await res.json();
-    noticias = normalize(json?.data ?? []);
-    meta = json?.meta?.pagination ?? meta;
+// Normaliza o resultado para obter a lista de autores
+const autoresList = normalize(autorRes);
+const autorData = Array.isArray(autoresList) ? autoresList[0] : (autoresList || null);
+
+// Se o autor não for encontrado pelo slug, tentamos um fallback por ID direto ou documentId
+let autor = autorData;
+if (!autor && slug) {
+  console.log(`[AutorPage] Não encontrado por filtro de slug, tentando ID direto em 'autores' e 'autor'...`);
+  // Tenta /api/autores/[id]
+  const resId = await fetchStrapi(`autores/${slug}`, { populate: '*' });
+  autor = normalize(resId);
+  
+  if (!autor) {
+    // Tenta /api/autor/[id]
+    const resIdSingular = await fetchStrapi(`autor/${slug}`, { populate: '*' });
+    autor = normalize(resIdSingular);
   }
-} catch (e) {}
+}
+
+if (autor) {
+  console.log(`[AutorPage] Autor encontrado: ${autor.nome} (Slug: ${autor.slug}, ID: ${autor.id})`);
+} else {
+  console.error(`[AutorPage] Autor NÃO encontrado para o slug: ${slug}`);
+}
+
+// Se ainda não houver autor, redireciona para 404
+if (!autor) {
+  return Astro.redirect('/404');
+}
+
+const fotoUrl = getImageUrl(autor.foto);
+
+// 2. Busca as notícias associadas a este autor
+const noticiasRes = await fetchStrapi('noticias', {
+  'filters[autor][slug][$eq]': autor.slug ?? "",
+  'populate[capa][fields][0]': 'url',
+  'populate[categorias][fields][0]': 'slug',
+  'populate[categorias][fields][1]': 'nome',
+  'pagination[page]': page,
+  'pagination[pageSize]': pageSize,
+  'sort': 'publishedAt:desc'
+});
+
+const news = normalize(noticiasRes);
+const meta = noticiasRes?.meta?.pagination || { page: 1, pageSize: 9, pageCount: 1, total: 0 };
 ---
 
 <Layout titulo={`${autor.nome} — Autor`}>
@@ -64,7 +83,7 @@ try {
   <main class="autor-page">
     <div class="autor-hero">
       <a href="/" class="voltar">← Voltar</a>
-
+      
       <div class="autor-profile">
         <div class="autor-avatar">
           {fotoUrl ? (
@@ -80,33 +99,38 @@ try {
         </div>
 
         <div class="autor-info">
+          <span class="autor-label">Autor</span>
           <h1>{autor.nome}</h1>
           {autor.cargo && <p class="autor-cargo">{autor.cargo}</p>}
-          <p class="autor-stats">
-            <span>{meta.total}</span>
-            {meta.total === 1 ? " artigo publicado" : " artigos publicados"}
-          </p>
+          <div class="autor-stats">
+            <span class="stat-number">{meta.total}</span>
+            <span class="stat-text">{meta.total === 1 ? " artigo publicado" : " artigos publicados"}</span>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="autor-noticias">
-      {noticias.length > 0 ? (
+      {news.length > 0 ? (
         <>
           <h2 class="section-title">Artigos de {autor.nome}</h2>
           <div class="noticias-grid">
-            {noticias.map((n: any) => (
+            {news.map((n: any) => (
               <CardNoticia noticia={n} />
             ))}
           </div>
-          <Pagination
-            currentPage={meta.page}
-            totalPages={meta.pageCount}
+
+          <Pagination 
+            currentPage={meta.page} 
+            totalPages={meta.pageCount} 
             baseUrl={`/autores/${slug}`}
           />
         </>
       ) : (
-        <p class="sem-noticias">Este autor ainda não tem artigos publicados.</p>
+        <div class="sem-noticias">
+          <p>Este autor ainda não tem artigos publicados.</p>
+          <a href="/" class="btn-home">Ir para a Página Inicial</a>
+        </div>
       )}
     </div>
   </main>
@@ -132,97 +156,146 @@ try {
 
   .autor-hero {
     margin-bottom: 60px;
-    padding-bottom: 48px;
+    padding-bottom: 60px;
     border-bottom: 1px solid var(--cor-borda);
   }
 
   .autor-profile {
     display: flex;
     align-items: center;
-    gap: 32px;
+    gap: 40px;
     flex-wrap: wrap;
   }
 
   .autor-avatar {
-    width: 120px;
-    height: 120px;
+    width: 140px;
+    height: 140px;
     border-radius: 50%;
     overflow: hidden;
-    border: 3px solid var(--cor-destaque);
+    border: 4px solid var(--cor-destaque);
     flex-shrink: 0;
     background: var(--cor-fundo-card);
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   }
 
   .avatar-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 50%;
-    box-shadow: none;
   }
 
-  .avatar-placeholder { color: var(--cor-destaque); }
+  .autor-info {
+    flex: 1;
+    min-width: 280px;
+  }
+
+  .autor-label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--cor-destaque);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
 
   .autor-info h1 {
     font-family: var(--fonte-titulo);
-    font-size: clamp(2rem, 5vw, 3rem);
+    font-size: clamp(2.2rem, 6vw, 3.5rem);
     color: var(--cor-principal);
-    margin-bottom: 8px;
+    margin: 0 0 8px 0;
+    line-height: 1.1;
   }
 
   .autor-cargo {
-    color: var(--cor-destaque);
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    font-size: 1.1rem;
+    color: var(--cor-texto-suave);
+    margin: 0 0 16px 0;
+    font-weight: 500;
   }
 
   .autor-stats {
-    color: var(--cor-texto-suave);
-    font-size: 0.95rem;
-    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--cor-fundo-card);
+    padding: 8px 16px;
+    border-radius: 50px;
+    width: fit-content;
+    border: 1px solid var(--cor-borda);
   }
-  .autor-stats span {
+
+  .stat-number {
+    font-weight: 800;
     color: var(--cor-destaque);
-    font-weight: 700;
     font-size: 1.1rem;
   }
 
-  .autor-noticias { animation: fadeUp 0.6s ease-out; }
+  .stat-text {
+    font-size: 0.9rem;
+    color: var(--cor-texto);
+    font-weight: 500;
+  }
 
   .section-title {
     font-family: var(--fonte-titulo);
-    font-size: 1.6rem;
+    font-size: 1.8rem;
     color: var(--cor-principal);
-    margin-bottom: 32px;
+    margin-bottom: 40px;
   }
 
   .noticias-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 28px;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 32px;
+    margin-bottom: 60px;
   }
 
   .sem-noticias {
-    color: var(--cor-texto-suave);
-    font-style: italic;
     text-align: center;
-    padding: 60px 0;
-    max-width: 100%;
+    padding: 80px 24px;
+    background: var(--cor-fundo-card);
+    border-radius: var(--raio);
+    border: 1px dashed var(--cor-borda);
   }
 
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to   { opacity: 1; transform: translateY(0); }
+  .sem-noticias p {
+    font-size: 1.1rem;
+    color: var(--cor-texto-suave);
+    margin-bottom: 24px;
   }
 
-  @media (max-width: 600px) {
-    .autor-profile { flex-direction: column; align-items: flex-start; }
-    .autor-avatar { width: 90px; height: 90px; }
+  .btn-home {
+    display: inline-block;
+    padding: 12px 24px;
+    background: var(--cor-destaque);
+    color: var(--cor-fundo);
+    text-decoration: none;
+    border-radius: 50px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+
+  .btn-home:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(200, 150, 62, 0.3);
+  }
+
+  @media (max-width: 768px) {
+    .autor-profile {
+      flex-direction: column;
+      text-align: center;
+      gap: 24px;
+    }
+    .autor-stats {
+      margin: 0 auto;
+    }
+    .autor-avatar {
+      width: 120px;
+      height: 120px;
+    }
   }
 </style>

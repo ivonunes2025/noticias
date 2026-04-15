@@ -1,0 +1,57 @@
+---
+// src/components/TagsList.astro
+// Renderiza as tags de uma notícia como links clicáveis.
+
+interface Tag {
+  id?: number;
+  nome: string;
+  slug: string;
+}
+
+interface Props {
+  tags: Tag[];
+}
+
+const { tags } = Astro.props;
+if (!tags || tags.length === 0) return null;
+---
+
+<div class="tags-lista">
+  {tags.map((tag) => (
+    <a href={`/tags/${tag.slug}`} class="tag-pill">
+      #{tag.nome}
+    </a>
+  ))}
+</div>
+
+<style>
+  .tags-lista {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .tag-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 14px;
+    background: var(--cor-destaque-claro);
+    color: var(--cor-destaque);
+    border: 1px solid var(--cor-destaque);
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    transition: all 0.2s ease;
+    line-height: 1;
+  }
+
+  .tag-pill:hover {
+    background: var(--cor-destaque);
+    color: var(--cor-fundo);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(200, 150, 62, 0.3);
+  }
+</style>
