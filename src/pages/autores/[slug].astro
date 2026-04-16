@@ -14,48 +14,22 @@ const page = Number(Astro.url.searchParams.get("page") || 1);
 const pageSize = 9;
 
 // 1. Busca o autor pelo slug no Strapi
-// Tenta primeiro 'autores' e depois 'autor' como fallback
-console.log(`[AutorPage] Buscando autor com slug: ${slug}`);
-
-let autorRes = await fetchStrapi('autores', {
+let autorRes = await fetchStrapi('autors', {
   'filters[slug][$eq]': slug ?? "",
   'populate': '*'
 });
 
-if (!autorRes || !autorRes.data || autorRes.data.length === 0) {
-  console.log(`[AutorPage] Não encontrado em 'autores', tentando 'autor'...`);
-  autorRes = await fetchStrapi('autor', {
-    'filters[slug][$eq]': slug ?? "",
-    'populate': '*'
-  });
-}
-
-// Normaliza o resultado para obter a lista de autores
+// Normaliza o resultado
 const autoresList = normalize(autorRes);
-const autorData = Array.isArray(autoresList) ? autoresList[0] : (autoresList || null);
+let autor = Array.isArray(autoresList) ? autoresList[0] : (autoresList || null);
 
-// Se o autor não for encontrado pelo slug, tentamos um fallback por ID direto ou documentId
-let autor = autorData;
+// Tenta também por ID se slug falhar
 if (!autor && slug) {
-  console.log(`[AutorPage] Não encontrado por filtro de slug, tentando ID direto em 'autores' e 'autor'...`);
-  // Tenta /api/autores/[id]
-  const resId = await fetchStrapi(`autores/${slug}`, { populate: '*' });
+  const resId = await fetchStrapi(`autors/${slug}`, { populate: '*' });
   autor = normalize(resId);
-  
-  if (!autor) {
-    // Tenta /api/autor/[id]
-    const resIdSingular = await fetchStrapi(`autor/${slug}`, { populate: '*' });
-    autor = normalize(resIdSingular);
-  }
 }
 
-if (autor) {
-  console.log(`[AutorPage] Autor encontrado: ${autor.nome} (Slug: ${autor.slug}, ID: ${autor.id})`);
-} else {
-  console.error(`[AutorPage] Autor NÃO encontrado para o slug: ${slug}`);
-}
-
-// Se ainda não houver autor, redireciona para 404
+// Se não houver autor, redireciona para 404
 if (!autor) {
   return Astro.redirect('/404');
 }
@@ -65,15 +39,13 @@ const fotoUrl = getImageUrl(autor.foto);
 // 2. Busca as notícias associadas a este autor
 const noticiasRes = await fetchStrapi('noticias', {
   'filters[autor][slug][$eq]': autor.slug ?? "",
-  'populate[capa][fields][0]': 'url',
-  'populate[categorias][fields][0]': 'slug',
-  'populate[categorias][fields][1]': 'nome',
+  'populate': '*',
   'pagination[page]': page,
   'pagination[pageSize]': pageSize,
   'sort': 'publishedAt:desc'
 });
 
-const news = normalize(noticiasRes);
+const news = normalize(noticiasRes) || [];
 const meta = noticiasRes?.meta?.pagination || { page: 1, pageSize: 9, pageCount: 1, total: 0 };
 ---
 
