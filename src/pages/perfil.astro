@@ -1,13 +1,12 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
-import SectionHeader from "../components/SectionHeader.astro";
 import { getCategorias, normalize } from "../utils/strapi";
 import NewsletterForm from "../components/NewsletterForm.astro";
 import "../styles/perfil.css";
 
-const user = Astro.cookies.get('user_name')?.value;
-if (!user) return Astro.redirect('/login');
+const userCookie = Astro.cookies.get('user_name')?.value;
+if (!userCookie) return Astro.redirect('/login');
 
 const rawCategorias = await getCategorias();
 const categorias = normalize(rawCategorias);
@@ -16,89 +15,134 @@ const categorias = normalize(rawCategorias);
 <Layout titulo="O Meu Perfil">
   <Navbar isHome={false} />
 
-  <div class="perfil-container">
-    <header class="perfil-header">
-      <div class="profile-photo-wrapper">
-        <div class="perfil-icon-large" id="profile-preview">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-          </svg>
+  <div class="perfil-dashboard">
+    <div class="perfil-dashboard-inner">
+      
+      <!-- Sidebar / User Info -->
+      <aside class="perfil-sidebar">
+        <div class="sidebar-user-card glass-panel">
+          
+          <div class="profile-photo-wrapper">
+            <div class="perfil-icon-large" id="profile-preview">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+            <label for="profile-upload" class="photo-edit-btn" title="Alterar foto de perfil">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+              </svg>
+            </label>
+            <input type="file" id="profile-upload" accept="image/*" hidden />
+          </div>
+          
+          <div class="user-greeting">
+            <h1>Olá, <span id="client-user-name"></span></h1>
+            <p>O seu espaço pessoal</p>
+          </div>
+          
+          <div class="sidebar-stats">
+            <div class="stat-item">
+              <span class="stat-value" id="saved-count">0</span>
+              <span class="stat-label">Artigos Guardados</span>
+            </div>
+          </div>
+          
         </div>
-        <label for="profile-upload" class="photo-edit-btn" title="Alterar foto de perfil">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
-          </svg>
-        </label>
-        <input type="file" id="profile-upload" accept="image/*" hidden />
-      </div>
-      <h1>O Meu Perfil</h1>
-      <p>Personalize a sua experiência e a sua identidade no site.</p>
-    </header>
+      </aside>
 
-    <div class="perfil-content">
-      <section class="categorias-selection" id="preferencias">
-        <h2>Categorias Favoritas</h2>
-        <p class="instruction">Selecione as categorias para as quais deseja receber mais destaque:</p>
+      <!-- Main Content / Sections -->
+      <main class="perfil-main">
         
-        <div class="categorias-grid">
-          {categorias.map((cat: any) => {
-            const slug = cat.slug ?? cat.id;
-            const nome = cat.nome ?? cat.name ?? slug;
-            return (
-              <label class="categoria-chip">
-                <input type="checkbox" name="categorias" value={slug} />
-                <span class="chip-text">{nome}</span>
-              </label>
-            );
-          })}
-        </div>
-        
-        <div class="save-actions">
-          <button id="save-prefs" class="save-button">Guardar Preferências</button>
-          <span id="status-msg" class="status-msg"></span>
-        </div>
-      </section>
-
-      <section class="tema-selection" id="tema">
-        <h2>Tema Visual</h2>
-        <p class="instruction">Escolha a aparência que mais lhe agrada para navegar no site:</p>
-        
-        <div class="temas-grid">
-          <button class="tema-card" data-theme="default">
-            <div class="tema-preview theme-default"></div>
-            <span>Dourado (Padrão)</span>
-          </button>
-          <button class="tema-card" data-theme="dark">
-            <div class="tema-preview theme-dark"></div>
-            <span>Minimalista (P&B)</span>
-          </button>
-        </div>
-      </section>
-
-      <section class="perfil-section" id="guardados">
-        <SectionHeader title="Ler Depois" />
-        <p class="instruction">Notícias que guardou para ler com mais calma.</p>
-        
-        <div class="carrossel">
-          <button type="button" class="carrossel-arrow carrossel-prev" aria-label="Anterior">‹</button>
-          <button type="button" class="carrossel-arrow carrossel-next" aria-label="Próximo">›</button>
-          <div id="saved-news-container" class="carrossel-track">
+        <!-- Guardados Section -->
+        <section class="perfil-card glass-panel" id="guardados-section">
+          <div class="card-header">
+            <div class="header-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            <h2>Leitura Guardada</h2>
+          </div>
+          <p class="instruction">Gerencie os artigos que guardou para ler mais tarde.</p>
+          
+          <div id="saved-news-container" class="saved-news-list">
             <!-- Preenchido via JavaScript -->
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="perfil-section" id="newsletter">
-        <h2>Newsletter</h2>
-        <p class="instruction">Escolha se deseja receber as nossas notícias por email.</p>
-        <NewsletterForm variant="card" titulo="Receba as notícias por email" />
-      </section>
+        <!-- Preferências -->
+        <section class="perfil-card glass-panel" id="preferencias">
+           <div class="card-header">
+             <div class="header-icon">
+               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+             </div>
+             <h2>Os  Seus Interesses</h2>
+           </div>
+           <p class="instruction">Selecione as categorias que pretende destacar na sua experiência de leitura.</p>
+          
+           <div class="categorias-grid">
+             {categorias.map((cat: any) => {
+               const slug = cat.slug ?? cat.id;
+               const nome = cat.nome ?? cat.name ?? slug;
+               return (
+                 <label class="categoria-chip">
+                   <input type="checkbox" name="categorias" value={slug} />
+                   <span class="chip-content">
+                     <span class="check-icon">
+                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                     </span>
+                     <span class="chip-text">{nome}</span>
+                   </span>
+                 </label>
+               );
+             })}
+           </div>
+          
+           <div class="save-actions">
+             <button id="save-prefs" class="save-button hover-glow">Atualizar Preferências</button>
+             <span id="status-msg" class="status-msg"></span>
+           </div>
+        </section>
 
+        <!-- Tema Visual -->
+        <section class="perfil-card glass-panel" id="tema">
+          <div class="card-header">
+             <div class="header-icon">
+               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+             </div>
+             <h2>Opções Visuais</h2>
+          </div>
+          <p class="instruction">Personalize as cores do portal para uma leitura mais confortável.</p>
+          
+          <div class="temas-grid">
+            <button class="tema-card" data-theme="default">
+              <div class="tema-preview theme-default"><div class="theme-accent"></div></div>
+              <span class="tema-nome">Premium Dourado</span>
+            </button>
+            <button class="tema-card" data-theme="dark">
+              <div class="tema-preview theme-dark"><div class="theme-accent"></div></div>
+              <span class="tema-nome">Minimalista Preto</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Newsletter -->
+        <section class="perfil-card glass-panel" id="newsletter">
+          <div class="card-header">
+             <div class="header-icon">
+               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+             </div>
+             <h2>Newsletter</h2>
+          </div>
+          <NewsletterForm variant="card" titulo="Fique sempre a par das novidades" />
+        </section>
+
+      </main>
     </div>
   </div>
 </Layout>
 
 <script>
+  // Utils
   function getCookie(name: string) {
     const nameEQ = name + "=";
     const ca = document.cookie.split(";");
@@ -110,13 +154,20 @@ const categorias = normalize(rawCategorias);
     return null;
   }
 
+  // Set Username
+  const currentUser = getCookie('user_name');
+  const clientUserName = document.getElementById('client-user-name');
+  if (clientUserName && currentUser) {
+    clientUserName.textContent = currentUser;
+  } else if (clientUserName) {
+    clientUserName.textContent = "Visitante";
+  }
+
+  // --- Photo Upload Logic ---
   const photoInput = document.getElementById('profile-upload') as HTMLInputElement;
   const photoPreview = document.getElementById('profile-preview');
-  const statusMsg = document.getElementById('status-msg');
   
-  const currentUser = getCookie('user_name');
   const photoKey = currentUser ? `profile-photo-${currentUser}` : 'profile-photo-guest';
-
   const savedPhoto = localStorage.getItem(photoKey);
   if (savedPhoto && photoPreview) {
     photoPreview.innerHTML = `<img src="${savedPhoto}" alt="Foto de Perfil" />`;
@@ -130,23 +181,21 @@ const categorias = normalize(rawCategorias);
         const base64 = event.target?.result as string;
         if (photoPreview) {
           photoPreview.innerHTML = `<img src="${base64}" alt="Foto de Perfil" />`;
+          // Fade in anim
+          photoPreview.querySelector('img')?.animate([
+            { opacity: 0 }, { opacity: 1 }
+          ], { duration: 400 });
           localStorage.setItem(photoKey, base64);
-          if (statusMsg) {
-            statusMsg.textContent = 'Foto atualizada!';
-            statusMsg.classList.add('success');
-            setTimeout(() => {
-              statusMsg.textContent = '';
-              statusMsg.classList.remove('success');
-            }, 2000);
-          }
         }
       };
       reader.readAsDataURL(file);
     }
   });
 
+  // --- Preferences Logic ---
   const saveBtn = document.getElementById('save-prefs');
   const checkboxes = document.querySelectorAll('input[name="categorias"]') as NodeListOf<HTMLInputElement>;
+  const statusMsg = document.getElementById('status-msg');
 
   const userPrefs = localStorage.getItem(`prefs-${currentUser}`);
   if (userPrefs) {
@@ -162,24 +211,23 @@ const categorias = normalize(rawCategorias);
       .map((cb) => cb.value);
     localStorage.setItem(`prefs-${currentUser}`, JSON.stringify(selected));
     if (statusMsg) {
-      statusMsg.textContent = 'Preferências guardadas!';
+      statusMsg.textContent = 'Preferências Atualizadas';
       statusMsg.classList.add('success');
       setTimeout(() => {
-        statusMsg.textContent = '';
         statusMsg.classList.remove('success');
-      }, 2000);
+      }, 3000);
     }
   });
 
+  // --- Themes Logic ---
   const themeCards = document.querySelectorAll('.tema-card');
   const currentTheme = localStorage.getItem('theme') || 'default';
+  
   themeCards.forEach(card => {
     if (card.getAttribute('data-theme') === currentTheme) {
       card.classList.add('active');
     }
-  });
-
-  themeCards.forEach(card => {
+    
     card.addEventListener('click', () => {
       const theme = card.getAttribute('data-theme');
       if (!theme) return;
@@ -194,111 +242,130 @@ const categorias = normalize(rawCategorias);
     });
   });
 
+  // --- Saved News Logic ---
   function updateSavedNews() {
     const container = document.getElementById('saved-news-container');
+    const savedCount = document.getElementById('saved-count');
     if (!container) return;
 
     const saved = localStorage.getItem('ler-depois');
     const news = saved ? JSON.parse(saved) : [];
 
+    if (savedCount) {
+       savedCount.textContent = news.length.toString();
+    }
+
     if (news.length === 0) {
       container.innerHTML = `
-        <div class="empty-saved">
+        <div class="empty-saved state-fade">
           <div class="empty-saved-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+              <line x1="9" y1="9" x2="15" y2="15"></line>
+              <line x1="15" y1="9" x2="9" y2="15"></line>
             </svg>
           </div>
-          <p>Ainda não guardou nenhuma notícia para ler depois.</p>
+          <p>Ainda não tem artigos guardados para ler.</p>
+          <button class="empty-state-btn" onclick="window.location.href='/'">Explorar Notícias</button>
         </div>
       `;
-      const carrossel = container.closest('.carrossel');
-      if (carrossel) {
-        const arrows = carrossel.querySelectorAll('.carrossel-arrow');
-        arrows.forEach((a: any) => a.style.display = 'none');
-      }
+      container.classList.remove('has-items');
       return;
     }
 
+    container.classList.add('has-items');
+
     container.innerHTML = news.map((n: any) => `
-      <div class="carrossel-slide">
-        <div class="noticia-card" data-id="${n.id}">
-          <div class="noticia-img-wrapper">
-            <img src="${n.imagem}" alt="${n.titulo}" class="noticia-img" onclick="window.location.href='/noticias/${n.id}'" style="cursor: pointer;" />
-            <button class="remove-saved-btn" data-id="${n.id}" title="Remover dos guardados">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
-                <line x1="1" y1="1" x2="23" y2="23"></line>
-              </svg>
-            </button>
-          </div>
-          <div class="noticia-corpo" onclick="window.location.href='/noticias/${n.id}'" style="cursor: pointer;">
-            <span class="noticia-data">${n.data}</span>
-            <h3 class="noticia-titulo">${n.titulo}</h3>
-          </div>
+      <div class="saved-noticia-row state-fade" data-id="${n.id}">
+        <div class="saved-noticia-content" onclick="window.location.href='/noticias/${n.id}'">
+          <h3 class="saved-noticia-title">${n.titulo}</h3>
+        </div>
+        <div class="saved-actions" style="flex-shrink: 0; display: flex; align-items: center;">
+           <button class="btn-clean-remove" data-id="${n.id}" title="Remover da lista" style="display:flex;align-items:center;gap:5px;background:#ff3b3b;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:0.9rem;font-weight:bold;cursor:pointer;box-shadow:0 2px 8px rgba(255,59,59,0.4);">
+             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+               <polyline points="3 6 5 6 21 6"></polyline>
+               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+             </svg>
+             <span>Remover</span>
+           </button>
         </div>
       </div>
     `).join('');
 
-    container.querySelectorAll('.remove-saved-btn').forEach(btn => {
+    container.querySelectorAll('.btn-clean-remove').forEach(btn => {
       btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
         const id = btn.getAttribute('data-id');
         if (!id) return;
+        
+        // Modal de confirmação premium
         const modal = document.createElement('div');
-        modal.className = 'confirm-modal-overlay';
+        modal.className = 'dashboard-modal-overlay';
         modal.innerHTML = `
-          <div class="confirm-modal">
-            <p>Deseja remover dos guardados?</p>
-            <div class="confirm-modal-btns">
-              <button class="confirm-btn yes">Sim</button>
-              <button class="confirm-btn no">Não</button>
+          <div class="dashboard-modal">
+            <div class="dashboard-modal-icon warning">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                 <line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>
+               </svg>
+            </div>
+            <h3>Remover Artigo?</h3>
+            <p>Tem a certeza que deseja remover este artigo da sua lista "Ler Mais Tarde"?</p>
+            <div class="dashboard-modal-btns">
+              <button class="dash-btn dash-btn-cancel no">Cancelar</button>
+              <button class="dash-btn dash-btn-danger yes">Remover</button>
             </div>
           </div>
         `;
         document.body.appendChild(modal);
-        modal.querySelector('.no')?.addEventListener('click', () => modal.remove());
+        
+        // Animations
+        setTimeout(() => modal.classList.add('visible'), 10);
+
+        modal.querySelector('.no')?.addEventListener('click', () => {
+           modal.classList.remove('visible');
+           setTimeout(() => modal.remove(), 300);
+        });
+        
         modal.querySelector('.yes')?.addEventListener('click', () => {
           let saved = JSON.parse(localStorage.getItem('ler-depois') || '[]');
           saved = saved.filter((n: any) => n.id !== id);
           localStorage.setItem('ler-depois', JSON.stringify(saved));
+          
           window.dispatchEvent(new CustomEvent('bookmarks-updated'));
-          updateSavedNews();
-          modal.remove();
+          
+          // Animate row removal smoothly
+          const rowToRemove = document.querySelector(`.saved-noticia-row[data-id="${id}"]`) as HTMLElement;
+          if (rowToRemove) {
+             rowToRemove.style.overflow = 'hidden';
+             rowToRemove.style.transition = 'all 0.4s ease';
+             rowToRemove.style.opacity = '0';
+             rowToRemove.style.height = rowToRemove.offsetHeight + 'px';
+             rowToRemove.style.transform = 'translateX(20px)';
+             
+             // Trigger reflow
+             void rowToRemove.offsetHeight;
+             
+             rowToRemove.style.height = '0px';
+             rowToRemove.style.marginTop = '0';
+             rowToRemove.style.marginBottom = '0';
+             rowToRemove.style.paddingTop = '0';
+             rowToRemove.style.paddingBottom = '0';
+             rowToRemove.style.borderWidth = '0';
+
+             setTimeout(() => {
+                updateSavedNews();
+             }, 400);
+          } else {
+             updateSavedNews();
+          }
+
+          modal.classList.remove('visible');
+          setTimeout(() => modal.remove(), 300);
         });
       });
     });
-
-    const carrossel = container.closest('.carrossel');
-    if (carrossel && news.length > 0) {
-      const prevBtn = carrossel.querySelector('.carrossel-arrow.carrossel-prev') as HTMLButtonElement;
-      const nextBtn = carrossel.querySelector('.carrossel-arrow.carrossel-next') as HTMLButtonElement;
-      const slides = carrossel.querySelectorAll('.carrossel-slide');
-      if (prevBtn && nextBtn && slides.length > 0) {
-        prevBtn.style.display = 'flex';
-        nextBtn.style.display = 'flex';
-        const slideWidth = (slides[0] as HTMLElement).offsetWidth + 24;
-        prevBtn.onclick = () => container.scrollBy({ left: -slideWidth, behavior: 'smooth' });
-        nextBtn.onclick = () => container.scrollBy({ left: slideWidth, behavior: 'smooth' });
-        let isDown = false;
-        let startX: number;
-        let scrollLeft: number;
-        container.onmousedown = (e: MouseEvent) => {
-          isDown = true;
-          container.classList.add('active');
-          startX = e.pageX - container.offsetLeft;
-          scrollLeft = container.scrollLeft;
-        };
-        container.onmouseleave = () => { isDown = false; container.classList.remove('active'); };
-        container.onmouseup = () => { isDown = false; container.classList.remove('active'); };
-        container.onmousemove = (e: MouseEvent) => {
-          if (!isDown) return;
-          e.preventDefault();
-          const x = e.pageX - container.offsetLeft;
-          const walk = (x - startX) * 2;
-          container.scrollLeft = scrollLeft - walk;
-        };
-      }
-    }
   }
 
   updateSavedNews();

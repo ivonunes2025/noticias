@@ -193,8 +193,8 @@ if (displayData) {
           <div class="meta-right">
             {isAuthenticated && (
               <button 
-                class="bookmark-btn" 
-                aria-label="Guardar para ler depois" 
+                class="bookmark-btn detailed-bookmark-btn" 
+                aria-label="Gerir leitura depois" 
                 data-bookmark-id={displayData.slug} 
                 data-noticia-info={JSON.stringify({
                   id: displayData.slug,
@@ -203,9 +203,11 @@ if (displayData) {
                   data: displayData.dataFormatada
                 })}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" class="bookmark-icon" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path class="b-path" d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                 </svg>
+                <span class="b-text-default">Guardar</span>
+                <span class="b-text-saved">Remover dos guardados</span>
               </button>
             )}
             <ShareMenu />
@@ -445,6 +447,55 @@ if (displayData) {
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Botão de Bookmark Detalhado */
+  .detailed-bookmark-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: 1px solid var(--cor-borda);
+    color: var(--cor-principal);
+    padding: 8px 16px;
+    border-radius: 30px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .detailed-bookmark-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .b-text-saved {
+    display: none;
+  }
+
+  /* Estado Guardado (Vira Remover) */
+  .bookmark-btn.is-saved {
+    background: rgba(255, 59, 59, 0.1);
+    color: #ff3b3b;
+    border-color: rgba(255, 59, 59, 0.3);
+  }
+
+  .bookmark-btn.is-saved:hover {
+    background: #ff3b3b;
+    color: #fff;
+  }
+
+  .bookmark-btn.is-saved .b-path {
+    stroke: currentColor;
+    fill: currentColor;
+  }
+
+  .bookmark-btn.is-saved .b-text-default {
+    display: none;
+  }
+
+  .bookmark-btn.is-saved .b-text-saved {
+    display: inline;
   }
 </style>
 
