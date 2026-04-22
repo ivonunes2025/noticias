@@ -2,6 +2,25 @@
    ESTILOS GLOBAIS - Comuns a todas as páginas
    ═══════════════════════════════════════════════════════════════ */
 
+   @import "tailwindcss";
+
+/* ── TEMA: mapeia as tuas variáveis para o Tailwind v4 ── */
+@theme {
+  --color-fundo: var(--cor-fundo);
+  --color-card: var(--cor-fundo-card);
+  --color-principal: var(--cor-principal);
+  --color-destaque: var(--cor-destaque);
+  --color-destaque-claro: var(--cor-destaque-claro);
+  --color-texto: var(--cor-texto);
+  --color-texto-suave: var(--cor-texto-suave);
+  --color-borda: var(--cor-borda);
+  --radius-site: var(--raio);
+  --font-titulo: var(--fonte-titulo);
+  --font-corpo: var(--fonte-corpo);
+}
+
+/* ═══ resto do teu CSS ═══ */
+
 /* Design tokens: cores, tipografia e medidas reusáveis em todo o site. */
 :root {
   /* TEMA PADRÃO: DOURADO (Luxo/Elegante) */
