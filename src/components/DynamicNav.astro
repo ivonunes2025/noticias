@@ -20,7 +20,7 @@ let categorias: any[] = [];
 
 try {
   // Tenta primeiro /categorias (plural)
-  const res1 = await fetch(`${STRAPI}/api/categorias?pagination[pageSize]=100&sort=nome:asc`);
+  const res1 = await fetch(`${STRAPI}/api/categorias?pagination[pageSize]=100`);
   if (res1.ok) {
     const json1 = await res1.json();
     const arr = json1?.data ?? [];
@@ -29,12 +29,13 @@ try {
       id: c.id,
       nome: c?.attributes?.nome ?? c.nome ?? c?.attributes?.name ?? c.name ?? '',
       slug: c?.attributes?.slug ?? c.slug ?? '',
+      ordem: c?.attributes?.ordem ?? c.ordem ?? null,
     })).filter((c: any) => c.slug);
   }
 
   // Se não encontrou nada, tenta /categoria (singular)
   if (categorias.length === 0) {
-    const res2 = await fetch(`${STRAPI}/api/categoria?pagination[pageSize]=100&sort=nome:asc`);
+    const res2 = await fetch(`${STRAPI}/api/categoria?pagination[pageSize]=100`);
     if (res2.ok) {
       const json2 = await res2.json();
       const arr = json2?.data ?? [];
@@ -42,9 +43,18 @@ try {
         id: c.id,
         nome: c?.attributes?.nome ?? c.nome ?? c?.attributes?.name ?? c.name ?? '',
         slug: c?.attributes?.slug ?? c.slug ?? '',
+        ordem: c?.attributes?.ordem ?? c.ordem ?? null,
       })).filter((c: any) => c.slug);
     }
   }
+
+  // Ordena as categorias no Javascript: as que têm ordem vão primeiro, as sem ordem (null) vão para o fim (999)
+  categorias.sort((a, b) => {
+    const aOrdem = (a.ordem !== null && a.ordem !== undefined) ? Number(a.ordem) : 999;
+    const bOrdem = (b.ordem !== null && b.ordem !== undefined) ? Number(b.ordem) : 999;
+    if (aOrdem !== bOrdem) return aOrdem - bOrdem;
+    return a.nome.localeCompare(b.nome);
+  });
 } catch (e) {
   console.error('[DynamicNav] Erro ao buscar categorias:', e);
 }

@@ -12,13 +12,16 @@ import Layout from "../layouts/Layout.astro";
 import Navbar from "../components/Navbar.astro";
 import Button from "../components/Button.astro";
 import SectionHeader from "../components/SectionHeader.astro";
-import { getImageUrl, fetchStrapi, normalize } from "../utils/strapi";
+import { getImageUrl, fetchStrapi, normalize, renderBlocks, getRichText } from "../utils/strapi";
 import { SITE_CONFIG } from "../utils/config";
 import "../styles/forms.css";
 
 // Busca dados da página de contacto no Strapi
 const pageRes = await fetchStrapi('paginas', { 'filters[slug][$eq]': 'contacto', 'populate': '*' });
 const contacto = normalize(pageRes)?.[0];
+
+// Conteúdo dinâmico vindo do Strapi (conteudo/descrição da secção)
+const contentHtml = contacto ? (renderBlocks(contacto.conteudo) || getRichText(contacto.conteudo)) : null;
 ---
 
 <Layout titulo={contacto?.titulo ?? SITE_CONFIG.ui.common.contacto}>
@@ -45,7 +48,11 @@ const contacto = normalize(pageRes)?.[0];
         <!-- Coluna de Informações -->
         <div class="info-column reveal" style="transition-delay: 0.1s;">
           <SectionHeader title="Fale Connosco" />
-          <p class="section-text">Estamos aqui para ajudar. Escolha a forma mais conveniente para entrar em contacto.</p>
+          {contentHtml ? (
+            <div class="section-text" set:html={contentHtml} />
+          ) : (
+            <p class="section-text">Estamos aqui para ajudar. Escolha a forma mais conveniente para entrar em contacto.</p>
+          )}
           
           <div class="contact-methods">
             <a 

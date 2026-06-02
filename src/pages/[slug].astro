@@ -11,9 +11,13 @@ const STRAPI_BASE = import.meta.env.STRAPI_URL;
 const STRAPI = STRAPI_BASE?.replace(/\/$/, '');
 const { slug } = Astro.params;
 
-// Busca os dados da página por slug
-const res = await fetch(`${STRAPI}/api/paginas?filters[slug][$eq]=${slug}&populate=*`).then(r => r.json());
-const rawData = res.data?.[0];
+// Busca os dados da página por slug e todas as páginas para o menu
+const [currentPageRes, allPagesRes] = await Promise.all([
+  fetch(`${STRAPI}/api/paginas?filters[slug][$eq]=${slug}&populate=*`).then(r => r.json()).catch(() => ({ data: [] })),
+  fetch(`${STRAPI}/api/paginas?filters[visivel][$ne]=false&fields[0]=titulo&fields[1]=slug&sort=titulo:asc`).then(r => r.json()).catch(() => ({ data: [] }))
+]);
+
+const rawData = currentPageRes.data?.[0];
 const pagina = rawData?.attributes ?? rawData;
 
 // Se não houver página, redireciona para 404
@@ -21,16 +25,14 @@ if (!pagina) {
   return Astro.redirect('/404');
 }
 
-// ✅ VERIFICAÇÃO DE VISIBILIDADE
-// Se o campo `visivel` for explicitamente false, a página está oculta
+// Se a página estiver oculta
 if (pagina.visivel === false) {
   return Astro.redirect('/404');
 }
 
-// Verifica se há blocos ou texto simples para o conteúdo
-const contentHtml = renderBlocks(pagina.conteudo) || getRichText(pagina.conteudo);
+const allPages = (allPagesRes.data ?? []).map((p: any) => p.attributes ?? p);
 
-// Se não houver 'capa', tenta procurar outros campos comuns de imagem
+const contentHtml = renderBlocks(pagina.conteudo) || getRichText(pagina.conteudo);
 const imagemCapa = pagina.capa || pagina.imagem || pagina.image || pagina.Hero;
 const urlCapa = getImageUrl(imagemCapa);
 ---
@@ -38,106 +40,297 @@ const urlCapa = getImageUrl(imagemCapa);
 <Layout titulo={pagina.titulo}>
   <Navbar isHome={false} />
 
-  <main class="legal-page">
-    <div class="legal-container">
-      <a href="/" class="voltar">← Voltar</a>
+  <div class="legal-dashboard">
+    <div class="legal-dashboard-inner">
       
-      <h1>{pagina.titulo}</h1>
-
-      <div class="content-container">
-        <div class="content-body is-collapsed" id="content-body" set:html={contentHtml}>
+      <!-- Sidebar de Navegação -->
+      <aside class="legal-sidebar">
+        <div class="sidebar-nav-card glass-panel">
+          <h3>Navegação</h3>
+          <nav class="sidebar-menu">
+            {allPages.map((p: any) => (
+              <a 
+                href={`/${p.slug}`} 
+                class={`sidebar-menu-item ${p.slug === slug ? 'active' : ''}`}
+              >
+                <span>{p.titulo}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </a>
+            ))}
+            <a 
+              href="/contacto" 
+              class="sidebar-menu-item"
+            >
+              <span>Contacto</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </a>
+          </nav>
         </div>
-        <div class="content-overlay" id="content-overlay"></div>
-      </div>
-      
-      <button id="toggle-content" class="read-more-btn">
-        <span>Ver mais</span>
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-      </button>
+      </aside>
 
-      {/* Imagem de capa - Movida para baixo do conteúdo */}
-      <div class="hero-container">
-        {urlCapa && (
-          <img 
-            src={urlCapa} 
-            alt={pagina.titulo} 
-            class="page-hero" 
-          />
-        )}
-      </div>
+      <!-- Conteúdo Principal -->
+      <main class="legal-main">
+        <article class="legal-card glass-panel">
+          <a href="/" class="voltar">← Voltar para a Home</a>
+          
+          <header class="page-header">
+            <h1>{pagina.titulo}</h1>
+          </header>
 
-      {/* Secção de Contacto (Visível em todas as páginas institucionais) */}
-      <div class="page-footer-cta">
-        <div class="cta-divider"></div>
-        <div class="cta-content">
-          <h2>Ficou com alguma dúvida?</h2>
-          <p>Estamos disponíveis para esclarecer qualquer questão sobre o nosso projeto ou políticas.</p>
-          <button onclick="window.location.href='/contacto'" class="contact-btn">
-            Contacte-nos
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-          </button>
-        </div>
-      </div>
+          <div class="content-body" set:html={contentHtml}>
+          </div>
 
-      {/* Secção de Estatísticas (Apenas para Quem Somos) */}
-      {slug === 'quem-somos' && (
-        <div class="quem-somos-extras">
-          <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              </div>
-              <div class="stat-info">
-                <span class="stat-value">24/7</span>
-                <span class="stat-label">Notícias em Tempo Real</span>
-              </div>
+          <!-- Imagem de capa - se existir -->
+          {urlCapa && (
+            <div class="hero-container">
+              <img 
+                src={urlCapa} 
+                alt={pagina.titulo} 
+                class="page-hero" 
+                loading="eager"
+              />
             </div>
-            <div class="stat-card">
-              <div class="stat-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          )}
+        </article>
+
+        {/* Secção de Estatísticas (Apenas para Quem Somos) */}
+        {slug === 'quem-somos' && (
+          <div class="quem-somos-extras">
+            <div class="stats-grid">
+              <div class="stat-card glass-panel">
+                <div class="stat-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div class="stat-info">
+                  <span class="stat-value">24/7</span>
+                  <span class="stat-label">Notícias em Tempo Real</span>
+                </div>
               </div>
-              <div class="stat-info">
-                <span class="stat-value">+10k</span>
-                <span class="stat-label">Visitantes Mensais</span>
+              <div class="stat-card glass-panel">
+                <div class="stat-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                </div>
+                <div class="stat-info">
+                  <span class="stat-value">+10k</span>
+                  <span class="stat-label">Visitantes Mensais</span>
+                </div>
               </div>
             </div>
           </div>
+        )}
+
+        <!-- CTA de Contacto -->
+        <div class="page-footer-cta glass-panel">
+          <div class="cta-content">
+            <h2>Ficou com alguma dúvida?</h2>
+            <p>Estamos sempre disponíveis para ajudar e responder a qualquer questão sobre as nossas políticas.</p>
+            <button onclick="window.location.href='/contacto'" class="contact-btn">
+              Contacte-nos
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+          </div>
         </div>
-      )}
+      </main>
+
     </div>
-  </main>
+  </div>
 </Layout>
 
 <style>
-  .legal-page {
-    padding: 120px 24px 80px;
-    background: var(--cor-fundo);
-    min-height: 80vh;
+  :root {
+    --dash-radius: 16px;
+    --transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
-  .legal-container {
-    max-width: 800px;
+  .legal-dashboard {
+    width: 100%;
+    max-width: var(--max-width);
     margin: 0 auto;
-    color: var(--cor-texto);
+    padding: 100px 20px 60px;
+    box-sizing: border-box;
+    min-height: calc(100vh - 100px);
+    animation: fadeIn 0.6s ease-out forwards;
+  }
+
+  .legal-dashboard-inner {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  @media (min-width: 900px) {
+    .legal-dashboard-inner {
+      grid-template-columns: 260px 1fr;
+      gap: 32px;
+    }
+    .legal-sidebar {
+      position: sticky;
+      top: 100px;
+    }
+  }
+
+  /* glass-panel base */
+  .glass-panel {
+    background: var(--cor-fundo-card);
+    border-radius: var(--dash-radius);
+    border: 1px solid var(--cor-borda);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Sidebar */
+  .sidebar-nav-card {
+    padding: 24px;
+  }
+
+  .sidebar-nav-card h3 {
+    font-family: var(--fonte-titulo);
+    font-size: 1.1rem;
+    color: var(--cor-principal);
+    margin-top: 0;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--cor-borda);
+    padding-bottom: 10px;
+  }
+
+  .sidebar-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .sidebar-menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    color: var(--cor-texto-suave);
+    transition: all 0.25s ease;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .sidebar-menu-item:hover {
+    color: var(--cor-principal);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .sidebar-menu-item.active {
+    color: var(--cor-destaque);
+    background: var(--cor-destaque-claro);
+    font-weight: 600;
+  }
+
+  .sidebar-menu-item svg {
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: all 0.25s ease;
+  }
+
+  .sidebar-menu-item:hover svg,
+  .sidebar-menu-item.active svg {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  /* Main / Article */
+  .legal-main {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .legal-card {
+    padding: 40px;
   }
 
   .voltar {
-    display: inline-block;
-    margin-bottom: 32px;
-    color: var(--cor-texto-suave);
-    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    color: var(--cor-destaque);
+    font-weight: 500;
     font-size: 0.9rem;
-    transition: color 0.2s ease;
+    text-decoration: none;
+    margin-bottom: 24px;
+    transition: transform 0.2s ease, opacity 0.2s ease;
   }
 
   .voltar:hover {
-    color: var(--cor-destaque);
+    transform: translateX(-4px);
+    opacity: 0.9;
+  }
+
+  .page-header h1 {
+    font-family: var(--fonte-titulo);
+    font-size: clamp(2rem, 4.5vw, 2.8rem);
+    color: var(--cor-principal);
+    margin-top: 0;
+    margin-bottom: 32px;
+    line-height: 1.2;
+  }
+
+  /* Typography inside content-body */
+  .content-body {
+    line-height: 1.8;
+    font-size: 1.05rem;
+    color: var(--cor-texto);
+  }
+
+  .content-body :global(p) {
+    margin-bottom: 24px;
+    color: var(--cor-texto-suave);
+  }
+
+  .content-body :global(h2) {
+    font-family: var(--fonte-titulo);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-top: 40px;
+    margin-bottom: 16px;
+    color: var(--cor-principal);
+    border-left: 3px solid var(--cor-destaque);
+    padding-left: 14px;
+    line-height: 1.3;
+  }
+
+  .content-body :global(h3) {
+    font-family: var(--fonte-titulo);
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-top: 30px;
+    margin-bottom: 12px;
+    color: var(--cor-principal);
+  }
+
+  .content-body :global(ul), .content-body :global(ol) {
+    margin-left: 24px;
+    margin-bottom: 24px;
+    color: var(--cor-texto-suave);
+  }
+
+  .content-body :global(li) {
+    margin-bottom: 8px;
+  }
+
+  .content-body :global(strong) {
+    color: var(--cor-principal);
+    font-weight: 600;
   }
 
   .hero-container {
     position: relative;
     width: 100%;
-    margin: 60px 0 40px;
+    margin-top: 40px;
     border-radius: var(--raio);
     overflow: hidden;
     aspect-ratio: 21 / 9;
@@ -150,73 +343,54 @@ const urlCapa = getImageUrl(imagemCapa);
     box-shadow: var(--sombra);
   }
 
-  h1 {
-    font-family: var(--fonte-titulo);
-    font-size: 3rem;
-    margin-bottom: 24px;
-    color: var(--cor-principal);
-  }
-
-  /* ── Secção de Contacto (CTA) ── */
+  /* CTA */
   .page-footer-cta {
-    margin-top: 80px;
-    padding-top: 40px;
-  }
-
-  .cta-divider {
-    height: 1px;
-    background: linear-gradient(to right, var(--cor-destaque-claro) 0%, transparent 100%);
-    margin-bottom: 40px;
-    opacity: 0.3;
+    padding: 40px;
   }
 
   .cta-content {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 24px;
-    padding: 40px;
-    text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 24px;
+    text-align: center;
+    gap: 20px;
   }
 
   .cta-content h2 {
     font-family: var(--fonte-titulo);
-    font-size: 2rem;
+    font-size: 1.8rem;
     color: var(--cor-principal);
     margin: 0;
   }
 
   .cta-content p {
-    font-size: 1.1rem;
+    font-size: 1rem;
     color: var(--cor-texto-suave);
     max-width: 500px;
     margin: 0;
+    line-height: 1.6;
   }
 
   .contact-btn {
     background: var(--cor-destaque);
     color: var(--cor-fundo);
-    padding: 16px 32px;
-    border-radius: 12px;
-    text-decoration: none;
+    padding: 14px 28px;
+    border-radius: 8px;
     font-weight: 700;
     display: inline-flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     transition: all 0.3s ease;
     border: none;
     cursor: pointer;
     font-family: inherit;
-    font-size: 1rem;
+    font-size: 0.95rem;
   }
 
   .contact-btn:hover {
     filter: brightness(1.1);
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px var(--cor-destaque-claro);
+    box-shadow: 0 8px 20px var(--cor-destaque-claro);
   }
 
   .contact-btn svg {
@@ -227,99 +401,18 @@ const urlCapa = getImageUrl(imagemCapa);
     transform: translateX(4px);
   }
 
-  /* ── Estilos do "Ver mais" ── */
-  .content-container {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .content-body {
-    line-height: 1.8;
-    font-size: 1.1rem;
-    color: var(--cor-texto-suave);
-    text-align: justify;
-    transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .content-body.is-collapsed {
-    max-height: 200px;
-  }
-
-  .content-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 100px;
-    background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, var(--cor-fundo) 100%);
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-  }
-
-  .is-expanded + .content-overlay {
-    opacity: 0;
-  }
-
-  .read-more-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: transparent;
-    border: 1px solid var(--cor-destaque-claro);
-    color: var(--cor-destaque);
-    padding: 10px 20px;
-    border-radius: 50px;
-    font-weight: 500;
-    cursor: pointer;
-    margin: 24px auto 0;
-    transition: all 0.3s ease;
-    font-family: inherit;
-  }
-
-  .read-more-btn:hover {
-    background: var(--cor-destaque-claro);
-    border-color: var(--cor-destaque);
-  }
-
-  .read-more-btn svg {
-    transition: transform 0.3s ease;
-  }
-
-  .read-more-btn.is-active svg {
-    transform: rotate(180deg);
-  }
-
-  .content-body :global(p) {
-    margin-bottom: 24px;
-  }
-
-  .content-body :global(h2) {
-    font-family: var(--fonte-corpo);
-    font-size: 1.15rem;
-    font-weight: 600;
-    margin-bottom: 2px;
-    color: var(--cor-destaque);
-    margin-top: 32px;
-  }
-
-  /* ── Estilos Especiais Quem Somos (Stats & CTA) ── */
+  /* Quem somos special styles */
   .quem-somos-extras {
-    margin-top: 60px;
-    padding-top: 40px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    margin-top: 12px;
   }
 
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 24px;
-    margin-bottom: 60px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
   }
 
   .stat-card {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: var(--raio);
     padding: 24px;
     display: flex;
     align-items: center;
@@ -334,10 +427,10 @@ const urlCapa = getImageUrl(imagemCapa);
   }
 
   .stat-icon {
-    width: 60px;
-    height: 60px;
+    width: 54px;
+    height: 54px;
     background: var(--cor-destaque-claro);
-    border-radius: 16px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -352,87 +445,33 @@ const urlCapa = getImageUrl(imagemCapa);
 
   .stat-value {
     font-family: var(--fonte-titulo);
-    font-size: 1.8rem;
+    font-size: 1.6rem;
     font-weight: 700;
     color: var(--cor-principal);
     line-height: 1.2;
   }
 
   .stat-label {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--cor-texto-suave);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
 
-  .content-body :global(.rich-image-container) {
-    margin: 40px 0;
-    width: 100%;
-    text-align: center;
-  }
-
-  .content-body :global(.rich-image) {
-    max-width: 100%;
-    height: auto;
-    border-radius: var(--raio);
-    box-shadow: var(--sombra);
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   @media (max-width: 768px) {
-    .legal-page {
+    .legal-dashboard {
       padding-top: 80px;
     }
-    
-    h1 {
-      font-size: 2.25rem;
+    .legal-card {
+      padding: 24px;
+    }
+    .page-footer-cta {
+      padding: 32px 20px;
     }
   }
 </style>
-
-<script>
-  function setupReadMore() {
-    const toggleBtn = document.getElementById('toggle-content');
-    const contentBody = document.getElementById('content-body') as HTMLElement;
-    const contentOverlay = document.getElementById('content-overlay') as HTMLElement;
-
-    if (!toggleBtn || !contentBody) return;
-
-    if (contentBody.scrollHeight <= 200) {
-      toggleBtn.style.display = 'none';
-      if (contentOverlay) contentOverlay.style.display = 'none';
-      contentBody.classList.remove('is-collapsed');
-      return;
-    }
-
-    toggleBtn.addEventListener('click', () => {
-      const isCollapsed = contentBody.classList.contains('is-collapsed');
-      
-      if (isCollapsed) {
-        contentBody.classList.remove('is-collapsed');
-        contentBody.style.maxHeight = contentBody.scrollHeight + 'px';
-        toggleBtn.classList.add('is-active');
-        const span = toggleBtn.querySelector('span');
-        if (span) span.innerText = 'Ver menos';
-        if (contentOverlay) contentOverlay.style.opacity = '0';
-      } else {
-        contentBody.classList.add('is-collapsed');
-        contentBody.style.maxHeight = '200px';
-        toggleBtn.classList.remove('is-active');
-        const span = toggleBtn.querySelector('span');
-        if (span) span.innerText = 'Ver mais';
-        if (contentOverlay) contentOverlay.style.opacity = '1';
-        
-        const rect = contentBody.getBoundingClientRect();
-        if (rect.top < 0) {
-          window.scrollTo({
-            top: window.scrollY + rect.top - 150,
-            behavior: 'smooth'
-          });
-        }
-      }
-    });
-  }
-
-  setupReadMore();
-  document.addEventListener('astro:after-swap', setupReadMore);
-</script>

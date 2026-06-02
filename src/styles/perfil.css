@@ -498,6 +498,33 @@
   .btn-clean-remove:active {
     transform: scale(0.95);
   }
+
+  .clear-all-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid rgba(255, 90, 90, 0.3);
+    color: #ff5a5a;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s var(--transition-bounce);
+  }
+  
+  .clear-all-btn:hover {
+    background: #ff5a5a;
+    color: #fff;
+    border-color: #ff5a5a;
+    box-shadow: 0 4px 16px rgba(255, 90, 90, 0.3);
+    transform: translateY(-2px);
+  }
+  
+  .clear-all-btn:active {
+    transform: scale(0.95);
+  }
   
   @media (max-width: 600px) {
     .saved-noticia-row {

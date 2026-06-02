@@ -56,11 +56,20 @@ const categorias = normalize(rawCategorias);
         
         <!-- Guardados Section -->
         <section class="perfil-card glass-panel" id="guardados-section">
-          <div class="card-header">
-            <div class="header-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+          <div class="card-header" style="justify-content: space-between; width: 100%;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div class="header-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+              </div>
+              <h2>Leitura Guardada</h2>
             </div>
-            <h2>Leitura Guardada</h2>
+            <button id="clear-all-saved" class="clear-all-btn" style="display: none;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+              Limpar Tudo
+            </button>
           </div>
           <p class="instruction">Gerencie os artigos que guardou para ler mais tarde.</p>
           
@@ -282,6 +291,11 @@ const categorias = normalize(rawCategorias);
        savedCount.textContent = news.length.toString();
     }
 
+    const clearAllBtn = document.getElementById('clear-all-saved');
+    if (clearAllBtn) {
+      clearAllBtn.style.display = news.length > 0 ? 'flex' : 'none';
+    }
+
     if (news.length === 0) {
       container.innerHTML = `
         <div class="empty-saved state-fade">
@@ -301,18 +315,27 @@ const categorias = normalize(rawCategorias);
     }
 
     container.classList.add('has-items');
-
     container.innerHTML = news.map((n: any) => `
       <div class="saved-noticia-row state-fade" data-id="${n.id}">
         <div class="saved-noticia-content" onclick="window.location.href='/noticias/${n.id}'">
-          <h3 class="saved-noticia-title">${n.titulo}</h3>
+          ${n.imagem ? `
+            <div class="saved-noticia-img-wrap">
+              <img src="${n.imagem}" alt="${n.titulo}" />
+            </div>
+          ` : ''}
+          <div class="saved-noticia-info">
+            ${n.data ? `<span class="saved-noticia-date">${n.data}</span>` : ''}
+            <h3 class="saved-noticia-title">${n.titulo}</h3>
+          </div>
         </div>
-        <div class="saved-actions" style="flex-shrink: 0; display: flex; align-items: center;">
-           <button class="btn-clean-remove" data-id="${n.id}" title="Remover da lista" style="display:flex;align-items:center;gap:5px;background:#ff3b3b;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:0.9rem;font-weight:bold;cursor:pointer;box-shadow:0 2px 8px rgba(255,59,59,0.4);">
-             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-               <polyline points="3 6 5 6 21 6"></polyline>
-               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-             </svg>
+        <div class="saved-actions">
+           <button class="btn-clean-remove" data-id="${n.id}" title="Remover da lista">
+             <span class="trash-icon">
+               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                 <polyline points="3 6 5 6 21 6"></polyline>
+                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+               </svg>
+             </span>
              <span>Remover</span>
            </button>
         </div>
@@ -326,74 +349,78 @@ const categorias = normalize(rawCategorias);
         const id = btn.getAttribute('data-id');
         if (!id) return;
         
-        // Modal de confirmação premium
-        const modal = document.createElement('div');
-        modal.className = 'dashboard-modal-overlay';
-        modal.innerHTML = `
-          <div class="dashboard-modal">
-            <div class="dashboard-modal-icon warning">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                 <line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>
-               </svg>
-            </div>
-            <h3>Remover Artigo?</h3>
-            <p>Tem a certeza que deseja remover este artigo da sua lista "Ler Mais Tarde"?</p>
-            <div class="dashboard-modal-btns">
-              <button class="dash-btn dash-btn-cancel no">Cancelar</button>
-              <button class="dash-btn dash-btn-danger yes">Remover</button>
-            </div>
-          </div>
-        `;
-        document.body.appendChild(modal);
+        // Remove directly with smooth transition
+        let saved = JSON.parse(localStorage.getItem('ler-depois') || '[]');
+        saved = saved.filter((n: any) => n.id !== id);
+        localStorage.setItem('ler-depois', JSON.stringify(saved));
         
-        // Animations
-        setTimeout(() => modal.classList.add('visible'), 10);
-
-        modal.querySelector('.no')?.addEventListener('click', () => {
-           modal.classList.remove('visible');
-           setTimeout(() => modal.remove(), 300);
-        });
+        window.dispatchEvent(new CustomEvent('bookmarks-updated'));
         
-        modal.querySelector('.yes')?.addEventListener('click', () => {
-          let saved = JSON.parse(localStorage.getItem('ler-depois') || '[]');
-          saved = saved.filter((n: any) => n.id !== id);
-          localStorage.setItem('ler-depois', JSON.stringify(saved));
-          
-          window.dispatchEvent(new CustomEvent('bookmarks-updated'));
-          
-          // Animate row removal smoothly
-          const rowToRemove = document.querySelector(`.saved-noticia-row[data-id="${id}"]`) as HTMLElement;
-          if (rowToRemove) {
-             rowToRemove.style.overflow = 'hidden';
-             rowToRemove.style.transition = 'all 0.4s ease';
-             rowToRemove.style.opacity = '0';
-             rowToRemove.style.height = rowToRemove.offsetHeight + 'px';
-             rowToRemove.style.transform = 'translateX(20px)';
-             
-             // Trigger reflow
-             void rowToRemove.offsetHeight;
-             
-             rowToRemove.style.height = '0px';
-             rowToRemove.style.marginTop = '0';
-             rowToRemove.style.marginBottom = '0';
-             rowToRemove.style.paddingTop = '0';
-             rowToRemove.style.paddingBottom = '0';
-             rowToRemove.style.borderWidth = '0';
+        // Animate row removal smoothly
+        const rowToRemove = document.querySelector(`.saved-noticia-row[data-id="${id}"]`) as HTMLElement;
+        if (rowToRemove) {
+           rowToRemove.style.overflow = 'hidden';
+           rowToRemove.style.transition = 'all 0.4s ease';
+           rowToRemove.style.opacity = '0';
+           rowToRemove.style.height = rowToRemove.offsetHeight + 'px';
+           rowToRemove.style.transform = 'translateX(20px)';
+           
+           // Trigger reflow
+           void rowToRemove.offsetHeight;
+           
+           rowToRemove.style.height = '0px';
+           rowToRemove.style.marginTop = '0';
+           rowToRemove.style.marginBottom = '0';
+           rowToRemove.style.paddingTop = '0';
+           rowToRemove.style.paddingBottom = '0';
+           rowToRemove.style.borderWidth = '0';
 
-             setTimeout(() => {
-                updateSavedNews();
-             }, 400);
-          } else {
-             updateSavedNews();
-          }
-
-          modal.classList.remove('visible');
-          setTimeout(() => modal.remove(), 300);
-        });
+           setTimeout(() => {
+              updateSavedNews();
+           }, 400);
+        } else {
+           updateSavedNews();
+        }
       });
     });
   }
+
+  // Event listener for clear all button
+  const clearAllBtnEl = document.getElementById('clear-all-saved');
+  clearAllBtnEl?.addEventListener('click', () => {
+    const modal = document.createElement('div');
+    modal.className = 'dashboard-modal-overlay';
+    modal.innerHTML = `
+      <div class="dashboard-modal">
+        <div class="dashboard-modal-icon warning">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+             <line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>
+           </svg>
+        </div>
+        <h3>Limpar Todos os Artigos?</h3>
+        <p>Tem a certeza que deseja remover TODAS as notícias guardadas da sua lista?</p>
+        <div class="dashboard-modal-btns">
+          <button class="dash-btn dash-btn-cancel no">Cancelar</button>
+          <button class="dash-btn dash-btn-danger yes">Limpar Tudo</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    setTimeout(() => modal.classList.add('visible'), 10);
+
+    modal.querySelector('.no')?.addEventListener('click', () => {
+       modal.classList.remove('visible');
+       setTimeout(() => modal.remove(), 300);
+    });
+    
+    modal.querySelector('.yes')?.addEventListener('click', () => {
+      localStorage.setItem('ler-depois', JSON.stringify([]));
+      window.dispatchEvent(new CustomEvent('bookmarks-updated'));
+      modal.classList.remove('visible');
+      setTimeout(() => modal.remove(), 300);
+    });
+  });
 
   updateSavedNews();
   window.addEventListener('bookmarks-updated', updateSavedNews);
