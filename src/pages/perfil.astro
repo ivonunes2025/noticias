@@ -123,6 +123,11 @@ const categorias = normalize(rawCategorias);
               <span class="tema-nome">Minimalista Preto</span>
             </button>
           </div>
+
+          <div class="save-actions" style="margin-top: 24px;">
+            <button id="save-theme-btn" class="save-button hover-glow">Guardar Tema</button>
+            <span id="theme-status-msg" class="status-msg"></span>
+          </div>
         </section>
 
         <!-- Newsletter -->
@@ -221,25 +226,47 @@ const categorias = normalize(rawCategorias);
 
   // --- Themes Logic ---
   const themeCards = document.querySelectorAll('.tema-card');
-  const currentTheme = localStorage.getItem('theme') || 'default';
+  const saveThemeBtn = document.getElementById('save-theme-btn');
+  const themeStatusMsg = document.getElementById('theme-status-msg');
+  
+  let selectedTheme = localStorage.getItem('theme') || 'default';
   
   themeCards.forEach(card => {
-    if (card.getAttribute('data-theme') === currentTheme) {
+    const cardTheme = card.getAttribute('data-theme');
+    if (cardTheme === selectedTheme) {
       card.classList.add('active');
+    } else {
+      card.classList.remove('active');
     }
     
     card.addEventListener('click', () => {
       const theme = card.getAttribute('data-theme');
       if (!theme) return;
-      if (theme === 'default') {
-        document.documentElement.removeAttribute('data-theme');
-      } else {
-        document.documentElement.setAttribute('data-theme', theme);
-      }
+      selectedTheme = theme;
+      
       themeCards.forEach(c => c.classList.remove('active'));
       card.classList.add('active');
-      localStorage.setItem('theme', theme);
     });
+  });
+
+  saveThemeBtn?.addEventListener('click', () => {
+    localStorage.setItem('theme', selectedTheme);
+    document.cookie = `theme=${encodeURIComponent(selectedTheme)}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+    
+    if (selectedTheme === 'default') {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', selectedTheme);
+    }
+
+    if (themeStatusMsg) {
+      themeStatusMsg.textContent = 'Tema Guardado! A atualizar...';
+      themeStatusMsg.classList.add('success');
+    }
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 800);
   });
 
   // --- Saved News Logic ---

@@ -9,7 +9,14 @@ import CookieConsent from "../components/CookieConsent.astro";
 import { getDefinicoes, getFontUrl, getFontCssValue } from "../utils/definicoes";
 
 // Headers de Cache
-Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=30');
+const userCookie = Astro.cookies.get('user_name')?.value;
+const jwtCookie = Astro.cookies.get('jwt')?.value;
+
+if (userCookie || jwtCookie) {
+  Astro.response.headers.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+} else {
+  Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=30');
+}
 
 // Busca definições globais (favicon, logo, fonte, etc)
 const definicoes = await getDefinicoes();
@@ -22,14 +29,14 @@ const fontCssValue = getFontCssValue(definicoes.fontFamily);
 const { titulo = "Notícias Básicas", lcpImage } = Astro.props;
 
 // Tema do cookie
-const themeCookie = Astro.cookies.get('theme')?.value || 'dark';
+const themeCookie = Astro.cookies.get('theme')?.value ?? 'default';
 ---
 
 <!doctype html>
-<html lang="pt" data-theme={themeCookie}>
+<html lang="pt" data-theme={themeCookie === 'default' ? undefined : themeCookie}>
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
     {/* Pré-carregamento da imagem LCP se fornecida */}
     {lcpImage && (
@@ -45,7 +52,9 @@ const themeCookie = Astro.cookies.get('theme')?.value || 'dark';
           if (parts.length === 2) return parts.pop().split(';').shift();
         };
         const theme = getCookie('theme') || localStorage.getItem('theme') || 'default';
-        if (theme !== 'default') {
+        if (theme === 'default') {
+          document.documentElement.removeAttribute('data-theme');
+        } else {
           document.documentElement.setAttribute('data-theme', theme);
         }
       })();

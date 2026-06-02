@@ -21,11 +21,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       return new Response(JSON.stringify({ error: 'Credenciais inválidas.' }), { status: 401 });
     }
 
+    const isDev = import.meta.env.DEV;
+
     // Define o cookie com o JWT do Strapi
     cookies.set('jwt', data.jwt, {
       path: '/',
       httpOnly: true,
-      secure: true,
+      secure: !isDev,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30, // 30 dias
     });
@@ -37,7 +39,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     cookies.set('user_name', displayName, {
       path: '/',
       httpOnly: false,
-      secure: true,
+      secure: !isDev,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
     });

@@ -42,12 +42,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       return new Response(JSON.stringify({ error: msg }), { status: 400 });
     }
 
+    const isDev = import.meta.env.DEV;
+
     // Define os cookies após registo bem-sucedido
     // Usamos o 'username' original (o nome real do user) para os cookies
     cookies.set('jwt', data.jwt, {
       path: '/',
       httpOnly: true,
-      secure: true,
+      secure: !isDev,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
     });
@@ -55,7 +57,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     cookies.set('user_name', username, { // Mostramos o nome real no site
       path: '/',
       httpOnly: false,
-      secure: true,
+      secure: !isDev,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
     });

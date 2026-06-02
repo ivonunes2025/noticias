@@ -64,16 +64,30 @@ function shouldInjectCategorias(item: MenuItem): boolean {
 function buildItens(itens: MenuItem[]): MenuItem[] {
   return itens.map(item => {
     if (shouldInjectCategorias(item)) {
+      // 1. Mostrar as primeiras 4 categorias no dropdown
+      const limit = 4;
+      const dropdownCats = categorias.slice(0, limit).map((cat: any) => ({
+        id: cat.id,
+        titulo: cat.nome,
+        link: `/categorias/${cat.slug}`,
+        ordem: 0,
+        abrir_nova_aba: false,
+        filhos: [],
+      }));
+
+      // 2. Adicionar o item "Ver Mais" ao fim do dropdown
+      dropdownCats.push({
+        id: -9999,
+        titulo: 'Ver Mais',
+        link: '#subnavbar-toggle',
+        ordem: 999,
+        abrir_nova_aba: false,
+        filhos: [],
+      });
+
       return {
         ...item,
-        filhos: categorias.map((cat: any) => ({
-          id: cat.id,
-          titulo: cat.nome,
-          link: `/categorias/${cat.slug}`,
-          ordem: 0,
-          abrir_nova_aba: false,
-          filhos: [],
-        })),
+        filhos: dropdownCats,
       };
     }
     return item;
@@ -106,14 +120,49 @@ const itensFinais = menu ? buildItens(menu.itens) : [];
                 <div class="dynamic-nav__dropdown-inner">
                   {item.filhos.map((filho: MenuItem) => (
                     <li role="none">
-                      <a
-                        href={filho.link}
-                        class="dynamic-nav__dropdown-item"
-                        target={filho.abrir_nova_aba ? '_blank' : '_self'}
-                        role="menuitem"
-                      >
-                        {filho.titulo}
-                      </a>
+                      {filho.link === '#subnavbar-toggle' ? (
+                        <>
+                          {/* Categorias adicionais para expandir inline no mobile */}
+                          <div class="mobile-remaining-cats" id="mobile-remaining-cats" style="display: none;">
+                            {categorias.slice(4).map((cat: any) => (
+                              <a
+                                href={`/categorias/${cat.slug}`}
+                                class="dynamic-nav__dropdown-item"
+                                role="menuitem"
+                              >
+                                {cat.nome}
+                              </a>
+                            ))}
+                          </div>
+
+                          {/* Desktop: Abre a subnavbar */}
+                          <button
+                            class="dynamic-nav__dropdown-item subnavbar-trigger-btn desktop-only"
+                            data-subnavbar-trigger
+                            type="button"
+                          >
+                            {filho.titulo}
+                          </button>
+
+                          {/* Mobile: Mostra as categorias restantes inline no accordion */}
+                          <button
+                            class="dynamic-nav__dropdown-item subnavbar-trigger-btn mobile-only"
+                            id="mobile-ver-mais-btn"
+                            type="button"
+                          >
+                            {filho.titulo}
+                          </button>
+                        </>
+                      ) : (
+                        <a
+                          href={filho.link}
+                          class="dynamic-nav__dropdown-item"
+                          target={filho.abrir_nova_aba ? '_blank' : '_self'}
+                          role="menuitem"
+                        >
+                          {filho.titulo}
+                        </a>
+                      )}
                     </li>
                   ))}
                 </div>
@@ -131,6 +180,17 @@ const itensFinais = menu ? buildItens(menu.itens) : [];
         </li>
       ))}
     </ul>
+
+    {/* Subnavbar Flutuante de Categorias (Desktop) */}
+    <div class="dynamic-nav__subnavbar" id="categories-subnavbar">
+      <div class="dynamic-nav__subnavbar-inner">
+        {categorias.map((cat: any) => (
+          <a href={`/categorias/${cat.slug}`} class="subnavbar-item">
+            {cat.nome}
+          </a>
+        ))}
+      </div>
+    </div>
   </nav>
 )}
 
@@ -233,6 +293,12 @@ const itensFinais = menu ? buildItens(menu.itens) : [];
     transform: translateY(0);
   }
 
+  .dynamic-nav__dropdown.oculto {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(-6px) !important;
+  }
+
   .dynamic-nav__dropdown-item {
     display: block;
     padding: 9px 14px;
@@ -267,6 +333,81 @@ const itensFinais = menu ? buildItens(menu.itens) : [];
     height: 1px;
     background: rgba(255, 255, 255, 0.07);
     margin: 4px 8px;
+  }
+
+  /* ── Responsive Utils ── */
+  .desktop-only {
+    display: block;
+  }
+  .mobile-only {
+    display: none;
+  }
+
+  /* ── Subnavbar de Categorias ── */
+  .dynamic-nav__subnavbar {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: rgba(15, 15, 15, 0.99);
+    border-bottom: 2px solid var(--cor-destaque, #c8963e);
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, padding 0.35s ease;
+    z-index: 90;
+    padding: 0 24px;
+  }
+
+  .dynamic-nav__subnavbar.aberto {
+    max-height: 300px; /* Permite múltiplas linhas se houver muitas categorias */
+    opacity: 1;
+    padding: 20px 24px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  }
+
+  .subnavbar-trigger-btn {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--cor-destaque, #c8963e) !important;
+    font-weight: 700 !important;
+    padding: 9px 14px;
+    border-radius: 8px;
+    transition: background 0.2s ease;
+  }
+
+  .subnavbar-trigger-btn:hover {
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .dynamic-nav__subnavbar-inner {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap; /* Permite quebrar em múltiplas linhas */
+    gap: 12px 24px; /* Espaço vertical de 12px e horizontal de 24px */
+  }
+
+  .subnavbar-item {
+    font-family: var(--fonte-corpo);
+    color: var(--cor-texto-suave);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: color 0.2s ease, transform 0.2s ease;
+    text-transform: capitalize;
+  }
+
+  .subnavbar-item:hover {
+    color: var(--cor-destaque);
+    transform: translateY(-1px);
   }
 
   /* ── Mobile ── */
@@ -307,30 +448,88 @@ const itensFinais = menu ? buildItens(menu.itens) : [];
     white-space: normal;
     font-size: 0.88rem;
   }
+
+  @media (max-width: 768px) {
+    .desktop-only {
+      display: none !important;
+    }
+    .mobile-only {
+      display: block !important;
+    }
+    .dynamic-nav__subnavbar {
+      display: none !important;
+    }
+  }
 </style>
 
 <script>
   function setupDynamicNav() {
-    const closeAll = () => {
+    const closeAllDropdowns = () => {
       document.querySelectorAll('[data-dropdown-trigger][aria-expanded="true"]')
         .forEach(btn => btn.setAttribute('aria-expanded', 'false'));
+    };
+
+    const closeSubnavbar = () => {
+      const subnavbar = document.getElementById('categories-subnavbar');
+      subnavbar?.classList.remove('aberto');
     };
 
     document.querySelectorAll('[data-dropdown-trigger]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const isOpen = btn.getAttribute('aria-expanded') === 'true';
-        closeAll();
+        closeAllDropdowns();
+        closeSubnavbar(); // Fecha a subnavbar se abrir outro dropdown
         if (!isOpen) btn.setAttribute('aria-expanded', 'true');
       });
     });
 
-    document.addEventListener('click', closeAll);
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeAll();
+    // Subnavbar toggle logic via the button inside the dropdown (Desktop)
+    const subnavbarTrigger = document.querySelector('[data-subnavbar-trigger]');
+    const subnavbar = document.getElementById('categories-subnavbar');
+
+    subnavbarTrigger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      
+      // Ocultar o dropdown pai temporariamente para não sobrepor a subnavbar
+      const dropdown = subnavbarTrigger.closest('.dynamic-nav__dropdown');
+      dropdown?.classList.add('oculto');
+
+      closeAllDropdowns(); // Fecha o dropdown pai ao clicar em "Ver Mais"
+
+      const isOpen = subnavbar?.classList.contains('aberto');
+      if (isOpen) {
+        subnavbar?.classList.remove('aberto');
+      } else {
+        subnavbar?.classList.add('aberto');
+      }
     });
 
-    // Mobile: expandir/colapsar
+    // Quando o rato sai do item de menu com dropdown, removemos o estado oculto
+    document.querySelectorAll('.has-dropdown').forEach(li => {
+      li.addEventListener('mouseleave', () => {
+        const dropdown = li.querySelector('.dynamic-nav__dropdown');
+        dropdown?.classList.remove('oculto');
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      closeAllDropdowns();
+      
+      // Fecha a subnavbar se clicar fora dela
+      if (subnavbar && !subnavbar.contains(e.target as Node) && e.target !== subnavbarTrigger) {
+        closeSubnavbar();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeAllDropdowns();
+        closeSubnavbar();
+      }
+    });
+
+    // Mobile: expandir/colapsar menu normal
     document.querySelectorAll('.dynamic-nav--mobile [data-dropdown-trigger]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -342,6 +541,17 @@ const itensFinais = menu ? buildItens(menu.itens) : [];
           .forEach(d => d.classList.remove('mobile-open'));
         if (!isOpen) dropdown.classList.add('mobile-open');
       });
+    });
+
+    // Mobile: mostrar categorias restantes dentro do accordion
+    const mobileVerMaisBtn = document.getElementById('mobile-ver-mais-btn');
+    const mobileRemainingCats = document.getElementById('mobile-remaining-cats');
+    mobileVerMaisBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (mobileRemainingCats) {
+        mobileRemainingCats.style.display = 'block';
+        mobileVerMaisBtn.style.display = 'none';
+      }
     });
   }
 

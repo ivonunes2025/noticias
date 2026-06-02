@@ -86,6 +86,10 @@ if (user) {
           if (response.ok) {
             status.innerText = 'Registo efetuado com sucesso!';
             status.className = 'auth-status success show';
+            
+            // Fallback: define o cookie no cliente caso o Set-Cookie do server seja bloqueado ou ignorado no HTTP local
+            document.cookie = `user_name=${encodeURIComponent(username as string)}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+            
             setTimeout(() => window.location.href = '/', 1500);
           } else {
             status.innerText = result.error || 'Erro ao criar conta.';

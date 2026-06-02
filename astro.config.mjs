@@ -8,6 +8,10 @@ export default defineConfig({
   output: 'server',
   adapter: node({ mode: 'standalone' }),
   integrations: [react()],
+  server: {
+    host: '127.0.0.1',
+    port: 4325,
+  },
 
   image: {
     remotePatterns: [

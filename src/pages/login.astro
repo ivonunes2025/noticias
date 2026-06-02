@@ -40,6 +40,8 @@ if (user) {
         <div id="auth-status" class="auth-status"></div>
       </form>
 
+
+
       <div class="auth-footer">
         <p>Ainda não tem conta? <a href="/registo">Registe-se aqui</a></p>
       </div>
@@ -61,6 +63,9 @@ if (user) {
       const identifier = formData.get('identifier');
       const password = formData.get('password');
 
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectUrl = urlParams.get('redirect') || '/';
+
       if (btnSpan) {
         const originalText = btnSpan.innerText;
         btnSpan.innerText = 'A entrar...';
@@ -80,7 +85,12 @@ if (user) {
           if (response.ok) {
             status.innerText = 'Sessão iniciada com sucesso!';
             status.className = 'auth-status success show';
-            setTimeout(() => window.location.href = '/', 1000);
+            
+            // Fallback: define o cookie no cliente caso o Set-Cookie do server seja bloqueado ou ignorado no HTTP local
+            const displayName = result.user.nome || result.user.username;
+            document.cookie = `user_name=${encodeURIComponent(displayName)}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+            
+            setTimeout(() => window.location.href = redirectUrl, 1000);
           } else {
             status.innerText = result.error || 'Credenciais inválidas.';
             status.className = 'auth-status error show';
@@ -205,4 +215,6 @@ if (user) {
   /* Animações */
   .reveal { opacity: 0; transform: translateY(20px); transition: all 0.6s ease; }
   .reveal.active { opacity: 1; transform: translateY(0); }
+
+
 </style>

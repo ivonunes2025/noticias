@@ -100,22 +100,7 @@ const lcpImageUrl = hasPrefs && favoriteNews.length > 0
 
   <HomepageBanner />
 
-  {/* ── Ticker Personalizado: Para Si (SSR) ── */}
-  {hasPrefs && favoriteNews.length > 0 && (
-    <div id="para-si-ticker" class="ticker-bar ticker-bar--personal">
-      <span class="ticker-label">{SITE_CONFIG.ui.home.paraSi}</span>
-      <div class="ticker-track-wrapper">
-        <div class="ticker-track">
-          {[...favoriteNews, ...favoriteNews].map((n: any) => (
-            <a href={`/noticias/${n.slug}`} class="ticker-item">
-              <span class="ticker-dot">●</span>
-              {n.titulo}
-            </a>
-          ))}
-        </div>
-      </div>
-    </div>
-  )}
+
 
   {/* ── Breaking News Ticker ── */}
   {tickerNews.length > 0 && (
